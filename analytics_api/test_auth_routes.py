@@ -112,6 +112,30 @@ class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(approved_login.json()["user"]["role"], "vendor")
         self.assertIn("token", approved_login.json())
 
+    async def test_registration_accepts_six_character_password_and_rejects_five(self):
+        accepted = await self.client.post(
+            "/api/auth/register",
+            json={
+                "fullName": "Six Char",
+                "businessName": "Six Char Goods",
+                "email": "six@example.com",
+                "password": "123456",
+            },
+        )
+        rejected = await self.client.post(
+            "/api/auth/register",
+            json={
+                "fullName": "Five Char",
+                "businessName": "Five Char Goods",
+                "email": "five@example.com",
+                "password": "12345",
+            },
+        )
+
+        self.assertEqual(accepted.status_code, 201)
+        self.assertEqual(rejected.status_code, 422)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM vendors").fetchone()[0], 1)
+
     async def test_existing_unverified_admin_can_log_in(self):
         password = "a-unique-admin-password"
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=4)).decode()

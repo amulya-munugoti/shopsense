@@ -22,7 +22,7 @@ environment when it exists.
 ## Accounts
 
 Email verification and SMTP delivery are not used. Vendor registration is available without
-email configuration. Registration passwords must be 6-72 bytes long, and newly registered
+email configuration. Registration passwords must be at least 6 characters and no more than 72 bytes; newly registered
 vendors must still be approved by an administrator before they can sign in.
 
 Set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, and a unique
