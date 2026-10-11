@@ -126,7 +126,7 @@ class RetrievalTests(unittest.TestCase):
 
         self.assertEqual(
             {product["name"] for product in result["products"]},
-            {"Smart Fitness Band"},
+            {"Smart Fitness Band", "Neoprene Dumbbell Pair"},
         )
 
     def test_negated_out_of_stock_filter_means_available_products(self):

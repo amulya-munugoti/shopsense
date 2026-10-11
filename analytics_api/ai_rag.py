@@ -334,7 +334,7 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
             continue
         if constraints["stock"] == "out" and stock > 0:
             continue
-        if constraints["stock"] == "low" and not 0 < stock <= 5:
+        if constraints["stock"] == "low" and stock > 5:
             continue
         if constraints["category"] and not _matches_category(product, constraints["category"]):
             continue
