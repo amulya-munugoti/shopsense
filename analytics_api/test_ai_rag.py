@@ -168,6 +168,26 @@ class RetrievalTests(unittest.TestCase):
         self.assertTrue(result["products"])
         self.assertTrue(all(product["stock"] > 0 for product in result["products"]))
 
+    def test_universal_stock_question_reports_products_out_of_stock(self):
+        question = "is every product stock is full?"
+        result = ai_rag.retrieve_products(self.db, question, 1)
+        answer = ai_rag.format_grounded_answer(question, result)
+
+        self.assertEqual(result["constraints"]["stock_check"], "in")
+        self.assertEqual(result["totalMatched"], 4)
+        self.assertIn("No—**1 of 4 products** are out of stock", answer)
+        self.assertIn("Neoprene Dumbbell Pair", answer)
+        self.assertIn("The other 3 have stock available", answer)
+
+    def test_universal_in_stock_question_explains_stock_capacity_is_unknown(self):
+        self.db.execute("UPDATE products SET stock = 1 WHERE vendor_id = 1")
+        question = "Are all products in stock?"
+        result = ai_rag.retrieve_products(self.db, question, 1)
+        answer = ai_rag.format_grounded_answer(question, result)
+
+        self.assertIn("Yes—all **4 products** currently have at least one unit in stock", answer)
+        self.assertIn("not a maximum or target stock level", answer)
+
 
 class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
     async def test_configured_gemini_receives_retrieved_catalog_context(self):

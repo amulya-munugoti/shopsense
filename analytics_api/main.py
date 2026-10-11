@@ -303,7 +303,7 @@ async def shopping_assistant(
     ]
     question = request.question.strip()
     results = ai_rag.retrieve_products(db, question, vendor_id, history)
-    if results["constraints"]["count"]:
+    if results["constraints"]["count"] or results["constraints"]["stock_check"]:
         answer = ai_rag.format_grounded_answer(question, results)
     else:
         answer, _provider = await ai_rag.generate_answer(question, results)

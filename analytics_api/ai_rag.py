@@ -67,11 +67,11 @@ QUERY_SYNONYMS = {
 }
 
 GENERIC_QUERY_TERMS = STOP_WORDS | {
-    "actually", "anything", "available", "availability", "best", "budget", "buy", "cheap",
+    "actually", "all", "anything", "available", "availability", "best", "budget", "buy", "cheap",
     "cheaper", "cheapest", "costly", "count", "currently", "expensive", "find", "good", "inr", "item",
-    "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
+    "every", "full", "fully", "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
     "just", "need", "never", "not", "now", "number", "only", "out", "priced", "price", "recommend", "reorder", "restock", "right",
-    "sell", "selling", "stock", "stuff", "suggest", "than", "thing", "things",
+    "sell", "selling", "stock", "stocked", "stuff", "suggest", "than", "thing", "things",
     "thousand", "today", "top", "first", "total", "unit", "units", "want", "rs", "rupee", "rupees",
 }
 
@@ -132,10 +132,19 @@ def _amount(value: str, unit: str | None) -> float:
 
 def _query_constraints(query: str) -> dict[str, Any]:
     text = query.lower()
+    universal_stock_check = bool(
+        re.search(
+            r"\b(?:every|all)\b.{0,50}\b(?:products?|items?|stock|inventory)\b"
+            r"|\b(?:products?|items?|stock|inventory)\b.{0,50}\b(?:every|all)\b",
+            text,
+        )
+        and re.search(r"\b(?:stock|inventory|available|availability|full|fully stocked|out of stock)\b", text)
+    )
     constraints: dict[str, Any] = {
         "minimum_price": None,
         "maximum_price": None,
         "stock": None,
+        "stock_check": None,
         "category": None,
         "ranking": None,
         "result_limit": None,
@@ -200,6 +209,8 @@ def _query_constraints(query: str) -> dict[str, Any]:
         text,
     ):
         constraints["stock"] = "in"
+    if universal_stock_check:
+        constraints["stock_check"] = "out" if out_of_stock and not negated_out_of_stock else "in"
 
     for category, pattern in CATEGORY_PATTERNS:
         if pattern.search(text):
@@ -338,11 +349,11 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
             continue
         if constraints["maximum_price"] is not None and price > constraints["maximum_price"]:
             continue
-        if constraints["stock"] == "in" and stock <= 0:
+        if not constraints["stock_check"] and constraints["stock"] == "in" and stock <= 0:
             continue
-        if constraints["stock"] == "out" and stock > 0:
+        if not constraints["stock_check"] and constraints["stock"] == "out" and stock > 0:
             continue
-        if constraints["stock"] == "low" and stock > 5:
+        if not constraints["stock_check"] and constraints["stock"] == "low" and stock > 5:
             continue
         if constraints["category"] and not _matches_category(product, constraints["category"]):
             continue
@@ -396,12 +407,22 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
         or (1 if ranking in {"cheapest", "priciest", "lowest_stock", "highest_stock"} else 6)
     )
     selected = matches[:ranking_limit]
-    return {
+    result = {
         "products": [_serialize_product(product) for product in selected],
         "totalMatched": count,
         "totalUnits": total_units,
         "constraints": constraints,
     }
+    if constraints["stock_check"]:
+        in_stock = [product for product in products if int(product["stock"]) > 0]
+        out_of_stock = [product for product in products if int(product["stock"]) == 0]
+        result["inventorySummary"] = {
+            "totalProducts": len(products),
+            "inStockCount": len(in_stock),
+            "outOfStockNames": [product["name"] for product in out_of_stock],
+            "totalUnits": sum(int(product["stock"]) for product in products),
+        }
+    return result
 
 
 def _serialize_product(product: dict[str, Any]) -> dict[str, Any]:
@@ -431,6 +452,33 @@ def format_grounded_answer(question: str, results: dict[str, Any]) -> str:
                 f'{results["totalMatched"]} matching product(s).'
             )
         return f'Your catalog has **{results["totalMatched"]} matching product(s)**.'
+    if constraints["stock_check"]:
+        summary = results.get("inventorySummary")
+        if not summary or not summary["totalProducts"]:
+            return "Your catalog has no products to check for stock."
+
+        total = summary["totalProducts"]
+        in_stock = summary["inStockCount"]
+        out_of_stock = total - in_stock
+        if constraints["stock_check"] == "in" and in_stock == total:
+            return (
+                f"Yes—all **{total} products** currently have at least one unit in stock "
+                f"({summary['totalUnits']:,} units total). The catalog tracks current quantities, "
+                "not a maximum or target stock level, so I can’t determine whether stock is “full” "
+                "in that sense."
+            )
+        if constraints["stock_check"] == "out" and out_of_stock == total:
+            return f"Yes—all **{total} products** are currently out of stock."
+        if constraints["stock_check"] == "in":
+            names = ", ".join(f'**{name}**' for name in summary["outOfStockNames"])
+            return (
+                f"No—**{out_of_stock} of {total} products** are out of stock: {names}. "
+                f"The other {in_stock} have stock available."
+            )
+        return (
+            f"No—only **{out_of_stock} of {total} products** are out of stock; "
+            f"{in_stock} currently have stock available."
+        )
     if not results["products"]:
         if re.search(r"\b(?:best|good|suitable|recommend)\b.{0,30}\b(?:for|to)\b.{0,30}\b(?:gaming|work|office|study|student|design|editing|photography)\b", question, re.I):
             return "I can’t make a reliable recommendation because this catalog does not include enough product specifications."
