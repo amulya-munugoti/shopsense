@@ -89,6 +89,23 @@ class RetrievalTests(unittest.TestCase):
 
         self.assertEqual(result["products"][0]["name"], "Everyday Laptop Backpack")
 
+    def test_expensive_product_returns_only_the_highest_priced_match(self):
+        result = ai_rag.retrieve_products(self.db, "I need an expensive product", 1)
+
+        self.assertEqual(len(result["products"]), 1)
+        self.assertEqual(result["products"][0]["name"], "Everyday Laptop Backpack")
+
+    def test_explicit_single_result_limit_overrides_default_multi_match(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "Show me an expensive product, only 1",
+            1,
+        )
+
+        self.assertEqual(len(result["products"]), 1)
+        self.assertEqual(result["products"][0]["name"], "Everyday Laptop Backpack")
+        self.assertEqual(result["constraints"]["result_limit"], 1)
+
     def test_counts_are_exact_for_price_filter(self):
         result = ai_rag.retrieve_products(self.db, "How many products are under Rs 1500?", 1)
 

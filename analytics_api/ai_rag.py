@@ -68,11 +68,11 @@ QUERY_SYNONYMS = {
 
 GENERIC_QUERY_TERMS = STOP_WORDS | {
     "actually", "anything", "available", "availability", "best", "budget", "buy", "cheap",
-    "cheaper", "cheapest", "count", "currently", "expensive", "find", "good", "inr", "item",
+    "cheaper", "cheapest", "costly", "count", "currently", "expensive", "find", "good", "inr", "item",
     "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
-    "need", "never", "not", "now", "number", "out", "priced", "price", "recommend", "reorder", "restock", "right",
+    "just", "need", "never", "not", "now", "number", "only", "out", "priced", "price", "recommend", "reorder", "restock", "right",
     "sell", "selling", "stock", "stuff", "suggest", "than", "thing", "things",
-    "thousand", "today", "total", "unit", "units", "want", "rs", "rupee", "rupees",
+    "thousand", "today", "top", "first", "total", "unit", "units", "want", "rs", "rupee", "rupees",
 }
 
 PRODUCT_KINDS = (
@@ -138,9 +138,17 @@ def _query_constraints(query: str) -> dict[str, Any]:
         "stock": None,
         "category": None,
         "ranking": None,
+        "result_limit": None,
         "count": bool(re.search(r"\b(?:how many|count|number of|total number)\b", text)),
         "count_units": bool(re.search(r"\b(?:how many|count|number of)\b.{0,35}\b(?:units|stock)\b", text)),
     }
+
+    limit_match = re.search(
+        r"\b(?:only|just|top|first)\s+(\d+)\b|\b(\d+)\s+(?:products?|items?|results?)\b",
+        text,
+    )
+    if limit_match:
+        constraints["result_limit"] = max(1, min(int(limit_match.group(1) or limit_match.group(2)), 6))
 
     match = re.search(
         rf"\b(?:between|from)\s*(?:₹|rs\.?|inr)?\s*{AMOUNT}\s*(?:and|to|-)\s*(?:₹|rs\.?|inr)?\s*{AMOUNT}",
@@ -200,7 +208,7 @@ def _query_constraints(query: str) -> dict[str, Any]:
 
     if re.search(r"\b(?:cheapest|cheaper|lowest[- ]priced?|least expensive|most affordable|costs? the least)\b", text):
         constraints["ranking"] = "cheapest"
-    elif re.search(r"\b(?:most expensive|highest[- ]priced?|costliest|priciest|costs? the most)\b", text):
+    elif re.search(r"\b(?:expensive|costly|most expensive|highest[- ]priced?|costliest|priciest|costs? the most)\b", text):
         constraints["ranking"] = "priciest"
     elif re.search(r"\b(?:popular|best[- ]selling|top selling|trending|most sold|most ordered)\b", text):
         constraints["ranking"] = "popular"
@@ -383,7 +391,11 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
     matches = [product for _, product in eligible]
     count = len(matches)
     total_units = sum(int(product["stock"]) for product in matches)
-    selected = matches[:1] if ranking in {"cheapest", "priciest", "lowest_stock", "highest_stock"} and re.search(r"\b(?:which|what|the|one|most|least)\b", query, re.I) else matches[:6]
+    ranking_limit = (
+        constraints["result_limit"]
+        or (1 if ranking in {"cheapest", "priciest", "lowest_stock", "highest_stock"} else 6)
+    )
+    selected = matches[:ranking_limit]
     return {
         "products": [_serialize_product(product) for product in selected],
         "totalMatched": count,
