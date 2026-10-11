@@ -471,7 +471,7 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("Yoga Starter Mat", [product["name"] for product in result["products"]])
 
     async def test_inventory_summary_does_not_attach_unrelated_product_cards(self):
-        headers = {"Authorization": f"****** 'vendor')}"}
+        headers = {"Authorization": "Bearer " + self._token(1, "vendor")}
         with patch.object(main, "DB_PATH", self.db_path), patch.dict(
             os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "", "LLM_API_KEY": ""}
         ):
@@ -507,7 +507,7 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 400)
 
     async def test_python_seo_endpoint_validates_auth_and_returns_expected_fields(self):
-        headers = {"Authorization": f"Bearer {self._token(1, 'vendor')}"}
+        headers = {"Authorization": "Bearer " + self._token(1, "vendor")}
         with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "", "LLM_API_KEY": ""}):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=main.app),
