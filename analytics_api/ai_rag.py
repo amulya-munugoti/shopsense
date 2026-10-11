@@ -99,6 +99,7 @@ PRODUCT_LOOKUP_FILLER = GENERIC_QUERY_TERMS | {
 }
 PRODUCT_CATEGORY_HINTS = {
     "lipstick": "beauty",
+    "mascara": "beauty",
 }
 
 
@@ -107,7 +108,9 @@ def _catalog_lookup_terms(query: str) -> list[str]:
     is_lookup_question = bool(
         re.search(
             r"\b(?:is|are)\b.{0,80}\b(?:there|in\s+(?:the\s+)?catalog|listed|available)\b"
-            r"|\bcan\s+i\s+find\b.{0,60}\b(?:in\s+(?:the\s+)?catalog|there)\b",
+            r"|\bcan\s+i\s+find\b.{0,60}\b(?:in\s+(?:the\s+)?catalog|there)\b"
+            r"|\b(?:does|do)\s+(?:your\s+)?(?:catalog\s+)?[\w'-]+(?:\s+[\w'-]+){0,4}\s+"
+            r"(?:exist|available|in[\s-]+stock|listed|in\s+(?:the\s+)?catalog)\b",
             query,
             re.I,
         )
@@ -118,9 +121,16 @@ def _catalog_lookup_terms(query: str) -> list[str]:
     )
     if not is_lookup_question:
         return []
+    direct_lookup = re.search(
+        r"^\s*(?:does|do)\s+(?:your\s+)?(?:catalog\s+)?(?P<target>.+?)\s+"
+        r"(?:exist|available|in[\s-]+stock|listed|in\s+(?:the\s+)?catalog)\s*[?.!]*\s*$",
+        query,
+        re.I,
+    )
+    lookup_text = direct_lookup.group("target") if direct_lookup else query
     return [
         token
-        for token in _tokens(query)
+        for token in _tokens(lookup_text)
         if token not in PRODUCT_LOOKUP_FILLER and not token.isdigit()
     ]
 
