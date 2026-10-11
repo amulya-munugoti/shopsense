@@ -224,7 +224,7 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(answer, "Here are your fitness products.")
             self.assertEqual(provider, "Gemini + Python RAG")
-            self.assertIn("gemini-2.5-flash:generateContent", requests[0][0])
+            self.assertIn("gemini-3.8-flash:generateContent", requests[0][0])
             prompt = requests[0][1]["json"]["contents"][0]["parts"][0]["text"]
             self.assertIn("Flex Yoga Mat", prompt)
         finally:
@@ -285,6 +285,23 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertIn("can’t verify an answer", answer)
             self.assertEqual(provider, "Python Grounded Catalog RAG (Local)")
+        finally:
+            db.close()
+
+    async def test_configured_but_unavailable_provider_is_reported_to_user(self):
+        db = make_catalog()
+        question = "Can you summarize my product range?"
+        results = ai_rag.retrieve_products(db, question, 1)
+        try:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key", "OPENAI_API_KEY": ""}):
+                with patch(
+                    "analytics_api.ai_rag._generate_text",
+                    return_value=(None, None),
+                ):
+                    answer, provider = await ai_rag.generate_answer(question, results)
+
+            self.assertIn("AI answer generation is unavailable", answer)
+            self.assertEqual(provider, "Python Grounded Catalog RAG (Provider unavailable)")
         finally:
             db.close()
 

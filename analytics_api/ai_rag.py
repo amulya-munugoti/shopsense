@@ -569,6 +569,14 @@ async def generate_answer(question: str, results: dict[str, Any]) -> tuple[str, 
     if generated and generated[0]:
         return generated[0], f"{generated[1]} + Python RAG"
 
+    if configured_provider:
+        return (
+            f"{fallback}\n\n"
+            "AI answer generation is unavailable because the configured provider rejected or "
+            "could not complete the request. Check that its API key has access to the selected "
+            "model, or configure a working OpenAI API key."
+        ), "Python Grounded Catalog RAG (Provider unavailable)"
+
     return fallback, "Python Grounded Catalog RAG (Local)"
 
 
@@ -590,7 +598,7 @@ async def _generate_text(
                     if json_response:
                         generation_config["responseMimeType"] = "application/json"
                     response = await client.post(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
                         params={"key": api_key},
                         json={
                             "contents": [{"role": "user", "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}],
