@@ -23,7 +23,8 @@ STOP_WORDS = {
 
 CATEGORY_PATTERNS = (
     ("home & kitchen", re.compile(r"\b(?:home\s*(?:&|and)\s*kitchen|kitchen(?:ware)?|household)\b", re.I)),
-    ("fitness", re.compile(r"\b(?:fitness|sports?|workouts?|gym|exercise|training)\b", re.I)),
+    ("yoga", re.compile(r"\byoga\b", re.I)),
+    ("fitness", re.compile(r"\b(?:fitness|sports?|workouts?|working\s+out|gym|exercise|training|running)\b", re.I)),
     ("computers", re.compile(r"\b(?:computers?|computing|laptops?|desktops?|pcs?)\b", re.I)),
     ("electronics", re.compile(r"\b(?:electronics?|technology|gadgets?)\b", re.I)),
     ("wearables", re.compile(r"\b(?:wearables?|smart\s*watches?|fitness\s*trackers?)\b", re.I)),
@@ -35,6 +36,7 @@ CATEGORY_PATTERNS = (
 
 CATEGORY_TERMS = {
     "home & kitchen": {"home", "kitchen", "cookware", "cooking", "household"},
+    "yoga": {"yoga"},
     "fitness": {"fitness", "sports", "workout", "workouts", "gym", "exercise", "training", "running", "yoga"},
     "computers": {"computer", "computers", "computing", "laptop", "laptops", "desktop", "pc"},
     "electronics": {"electronics", "electronic", "technology", "gadgets", "tech"},
@@ -43,6 +45,34 @@ CATEGORY_TERMS = {
     "fashion": {"fashion", "clothes", "clothing", "apparel", "shoes", "footwear"},
     "accessories": {"accessories", "bags", "backpack", "backpacks", "wallet", "sunglasses"},
     "audio": {"audio", "headphones", "headset", "earbuds", "speaker", "speakers"},
+}
+
+QUERY_SYNONYMS = {
+    "affordable": {"cheap", "budget"},
+    "bag": {"backpack"},
+    "children": {"kids", "toys"},
+    "earbud": {"headphone", "audio"},
+    "earphone": {"headphone", "audio"},
+    "exercise": {"fitness", "workout", "training"},
+    "gym": {"fitness", "sports", "workout"},
+    "headset": {"headphone", "audio"},
+    "kid": {"child", "toy"},
+    "phone": {"mobile", "electronics"},
+    "present": {"gift"},
+    "purse": {"bag", "wallet"},
+    "sneaker": {"shoe", "footwear"},
+    "train": {"fitness", "workout", "exercise"},
+    "workout": {"fitness", "exercise", "training"},
+    "yoga": {"fitness", "exercise"},
+}
+
+GENERIC_QUERY_TERMS = STOP_WORDS | {
+    "anything", "available", "availability", "best", "budget", "buy", "cheap",
+    "cheaper", "cheapest", "currently", "expensive", "find", "good", "item",
+    "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
+    "need", "now", "number", "out", "priced", "price", "recommend", "right",
+    "sell", "selling", "stock", "stuff", "suggest", "than", "thing", "things",
+    "thousand", "today", "total", "unit", "units", "want",
 }
 
 PRODUCT_KINDS = (
@@ -67,10 +97,15 @@ AMOUNT = r"(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|lakhs?)?"
 
 
 def _tokens(text: str) -> list[str]:
-    return [
-        token for token in re.findall(r"[a-z0-9]+", text.lower())
-        if len(token) > 1 and token not in STOP_WORDS
-    ]
+    tokens = []
+    for token in re.findall(r"[a-z0-9]+", text.lower()):
+        if token.endswith("ies") and len(token) > 4:
+            token = token[:-3] + "y"
+        elif token.endswith("s") and not token.endswith(("ss", "us", "is")) and len(token) > 3:
+            token = token[:-1]
+        if len(token) > 1 and token not in STOP_WORDS:
+            tokens.append(token)
+    return tokens
 
 
 def _vector(text: str) -> dict[int, float]:
@@ -117,7 +152,7 @@ def _query_constraints(query: str) -> dict[str, Any]:
         constraints["maximum_price"] = _amount(match.group(3), match.group(4))
     else:
         match = re.search(
-            rf"\b(?:under|below|less than|up to|at most|maximum|budget of|within)\s*(?:₹|rs\.?|inr)?\s*{AMOUNT}",
+            rf"\b(?:under|below|less than|no more than|not more than|up to|at most|maximum|budget of|within|priced under|for under)\s*(?:₹|rs\.?|inr)?\s*{AMOUNT}",
             text,
             re.I,
         )
@@ -135,11 +170,27 @@ def _query_constraints(query: str) -> dict[str, Any]:
         if match:
             constraints["maximum_price"] = _amount(match.group(1), match.group(2))
 
-    if re.search(r"\b(?:low[\s-]+stock|almost\s+(?:out|sold\s+out)|running\s+low|reorder)\b", text):
+    out_of_stock = re.search(
+        r"\b(?:out[\s-]+of[\s-]+stock|unavailable|sold[\s-]+out|not\s+available)\b",
+        text,
+    )
+    negated_out_of_stock = out_of_stock and re.search(
+        r"\b(?:not|never|no|don't|do not|isn't|aren't|is not|are not)\b.{0,20}$",
+        text[: out_of_stock.start()],
+    )
+    if negated_out_of_stock:
+        constraints["stock"] = "in"
+    elif re.search(
+        r"\b(?:low[\s-]+stock|almost\s+(?:out|sold\s+out)|running\s+low|reorder|restock|need\s+to\s+restock)\b",
+        text,
+    ):
         constraints["stock"] = "low"
-    elif re.search(r"\b(?:out[\s-]+of[\s-]+stock|unavailable|sold[\s-]+out|not\s+available)\b", text):
+    elif out_of_stock:
         constraints["stock"] = "out"
-    elif re.search(r"\b(?:in[\s-]+stock|available|can i buy|can i get)\b", text):
+    elif re.search(
+        r"\b(?:in[\s-]+stock|available|can i buy|can i get|ready to ship|ready for dispatch)\b",
+        text,
+    ):
         constraints["stock"] = "in"
 
     for category, pattern in CATEGORY_PATTERNS:
@@ -190,7 +241,13 @@ def _product_kind(text: str) -> str | None:
 def _query_terms(query: str, category: str | None) -> set[str]:
     terms = set(_tokens(query))
     if category:
-        terms.update(CATEGORY_TERMS[category])
+        for category_term in CATEGORY_TERMS[category]:
+            terms.update(_tokens(category_term))
+    terms.update(
+        synonym
+        for term in tuple(terms)
+        for synonym in QUERY_SYNONYMS.get(term, ())
+    )
     return terms
 
 
@@ -238,9 +295,24 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
             str(item.get("name", "")) + " " + str(item.get("category", ""))
             for item in recent_products[:6]
         )
-    terms = _query_terms(expanded_query, constraints["category"])
-    query_vector = _vector(expanded_query + " " + " ".join(sorted(terms)))
     query_kind = _product_kind(query)
+    terms = _query_terms(expanded_query, constraints["category"])
+    topic_terms = {
+        term
+        for term in _query_terms(query, None) - GENERIC_QUERY_TERMS
+        if not any(character.isdigit() for character in term)
+    }
+    if constraints["category"]:
+        topic_terms -= _query_terms("", constraints["category"])
+    if query_kind:
+        topic_terms -= set(_tokens(query_kind))
+    if follow_up and recent_products:
+        for item in recent_products[:6]:
+            topic_terms.update(
+                _query_terms(f'{item.get("name", "")} {item.get("category", "")}', None)
+            )
+    scoring_terms = topic_terms or terms
+    query_vector = _vector(" ".join(sorted(scoring_terms)))
     excluded_ids = {
         str(item.get("id"))
         for turn in history
@@ -271,7 +343,7 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
 
         product_text = f'{product["name"]} {product["category"]} {product["description"]}'
         product_tokens = set(_tokens(product_text))
-        overlap = len(terms & product_tokens)
+        overlap = len(scoring_terms & product_tokens)
         browse_intent = bool(re.search(r"\b(?:show|list|browse|display|catalog|recommend|suggest|products?)\b", query, re.I))
         has_filters = any((
             constraints["minimum_price"] is not None,
@@ -284,10 +356,12 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
         ))
         if not has_filters and not browse_intent and overlap == 0:
             continue
+        if topic_terms and not constraints["category"] and not query_kind and overlap == 0:
+            continue
 
         score = _cosine(query_vector, _vector(product_text))
-        score += overlap / max(len(terms), 1) * 0.7
-        score += len(set(_tokens(product["name"])) & terms) / max(len(terms), 1) * 0.8
+        score += overlap / max(len(scoring_terms), 1) * 0.7
+        score += len(set(_tokens(product["name"])) & scoring_terms) / max(len(scoring_terms), 1) * 0.8
         eligible.append((score, product))
 
     ranking = constraints["ranking"]

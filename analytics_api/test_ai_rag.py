@@ -95,6 +95,50 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(result["totalMatched"], 1)
         self.assertEqual(result["totalUnits"], 9)
 
+    def test_everyday_yoga_request_applies_topic_and_budget_together(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "I'm looking for a mat I can use for yoga, ideally under 1.5k",
+            1,
+        )
+
+        self.assertEqual([product["name"] for product in result["products"]], ["Flex Yoga Mat"])
+        self.assertEqual(result["constraints"]["maximum_price"], 1500)
+
+    def test_everyday_bag_request_matches_a_laptop_backpack(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "I need a bag to carry my laptop",
+            1,
+        )
+
+        self.assertEqual(
+            [product["name"] for product in result["products"]],
+            ["Everyday Laptop Backpack"],
+        )
+
+    def test_colloquial_restock_question_finds_low_stock_products(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "What do I need to restock?",
+            1,
+        )
+
+        self.assertEqual(
+            {product["name"] for product in result["products"]},
+            {"Smart Fitness Band"},
+        )
+
+    def test_negated_out_of_stock_filter_means_available_products(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "Show me products that are not out of stock",
+            1,
+        )
+
+        self.assertEqual(result["constraints"]["stock"], "in")
+        self.assertTrue(all(product["stock"] > 0 for product in result["products"]))
+
 
 class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
     async def test_configured_gemini_receives_retrieved_catalog_context(self):
