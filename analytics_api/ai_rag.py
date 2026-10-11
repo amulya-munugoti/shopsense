@@ -23,6 +23,7 @@ STOP_WORDS = {
 
 CATEGORY_PATTERNS = (
     ("home & kitchen", re.compile(r"\b(?:home\s*(?:&|and)\s*kitchen|kitchen(?:ware)?|household)\b", re.I)),
+    ("accessories", re.compile(r"\b(?:accessories|bags?|backpacks?|wallets?|sunglasses)\b", re.I)),
     ("yoga", re.compile(r"\byoga\b", re.I)),
     ("fitness", re.compile(r"\b(?:fitness|sports?|workouts?|working\s+out|gym|exercise|training|running)\b", re.I)),
     ("computers", re.compile(r"\b(?:computers?|computing|laptops?|desktops?|pcs?)\b", re.I)),
@@ -30,7 +31,6 @@ CATEGORY_PATTERNS = (
     ("wearables", re.compile(r"\b(?:wearables?|smart\s*watches?|fitness\s*trackers?)\b", re.I)),
     ("beauty", re.compile(r"\b(?:beauty|skincare|skin\s*care|cosmetics?|makeup|hair\s*care)\b", re.I)),
     ("fashion", re.compile(r"\b(?:fashion|clothes|clothing|apparel|footwear|shoes?)\b", re.I)),
-    ("accessories", re.compile(r"\b(?:accessories|bags?|backpacks?|wallets?|sunglasses)\b", re.I)),
     ("audio", re.compile(r"\b(?:audio|headphones?|headsets?|earbuds?|speakers?)\b", re.I)),
 )
 
@@ -68,11 +68,11 @@ QUERY_SYNONYMS = {
 
 GENERIC_QUERY_TERMS = STOP_WORDS | {
     "anything", "available", "availability", "best", "budget", "buy", "cheap",
-    "cheaper", "cheapest", "currently", "expensive", "find", "good", "item",
+    "cheaper", "cheapest", "count", "currently", "expensive", "find", "good", "inr", "item",
     "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
-    "need", "now", "number", "out", "priced", "price", "recommend", "right",
+    "need", "never", "not", "now", "number", "out", "priced", "price", "recommend", "reorder", "restock", "right",
     "sell", "selling", "stock", "stuff", "suggest", "than", "thing", "things",
-    "thousand", "today", "total", "unit", "units", "want",
+    "thousand", "today", "total", "unit", "units", "want", "rs", "rupee", "rupees",
 }
 
 PRODUCT_KINDS = (
@@ -296,6 +296,8 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
             for item in recent_products[:6]
         )
     query_kind = _product_kind(query)
+    if constraints["category"] == "accessories" and query_kind == "laptop":
+        query_kind = None
     terms = _query_terms(expanded_query, constraints["category"])
     topic_terms = {
         term
