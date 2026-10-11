@@ -111,6 +111,7 @@ class RetrievalTests(unittest.TestCase):
 
         self.assertEqual(result["totalMatched"], 1)
         self.assertEqual(result["totalUnits"], 9)
+        self.assertEqual(result["products"], [])
 
     def test_everyday_yoga_request_applies_topic_and_budget_together(self):
         result = ai_rag.retrieve_products(
@@ -226,6 +227,64 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("gemini-2.5-flash:generateContent", requests[0][0])
             prompt = requests[0][1]["json"]["contents"][0]["parts"][0]["text"]
             self.assertIn("Flex Yoga Mat", prompt)
+        finally:
+            db.close()
+
+    async def test_general_question_uses_full_vendor_catalog_even_without_retrieval_hits(self):
+        db = make_catalog()
+        results = ai_rag.retrieve_products(db, "Can you summarize my product range?", 1)
+        requests = []
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"choices": [{"message": {"content": "Your catalog covers sports, electronics, and accessories."}}]}
+
+        class FakeClient:
+            def __init__(self, timeout):
+                self.timeout = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return None
+
+            async def post(self, url, **kwargs):
+                requests.append((url, kwargs))
+                return FakeResponse()
+
+        try:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "test-openai-key"}):
+                with patch("analytics_api.ai_rag.httpx.AsyncClient", FakeClient):
+                    answer, provider = await ai_rag.generate_answer(
+                        "Can you summarize my product range?", results
+                    )
+
+            self.assertEqual(results["products"], [])
+            self.assertEqual(answer, "Your catalog covers sports, electronics, and accessories.")
+            self.assertEqual(provider, "OpenAI + Python RAG")
+            prompt = requests[0][1]["json"]["messages"][1]["content"]
+            self.assertIn("Flex Yoga Mat", prompt)
+            self.assertIn("Everyday Laptop Backpack", prompt)
+            self.assertNotIn("Yoga Starter Mat", prompt)
+            self.assertIn('"complete": true', prompt)
+        finally:
+            db.close()
+
+    async def test_unavailable_provider_does_not_claim_unknown_question_has_no_match(self):
+        db = make_catalog()
+        results = ai_rag.retrieve_products(db, "What is my business's customer satisfaction?", 1)
+        try:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "", "LLM_API_KEY": ""}):
+                answer, provider = await ai_rag.generate_answer(
+                    "What is my business's customer satisfaction?", results
+                )
+
+            self.assertIn("can’t verify an answer", answer)
+            self.assertEqual(provider, "Python Grounded Catalog RAG (Local)")
         finally:
             db.close()
 
@@ -353,6 +412,27 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["products"])
         self.assertTrue(all(product["vendorId"] == 1 for product in result["products"]))
         self.assertNotIn("Yoga Starter Mat", [product["name"] for product in result["products"]])
+
+    async def test_inventory_summary_does_not_attach_unrelated_product_cards(self):
+        headers = {"Authorization": f"****** 'vendor')}"}
+        with patch.object(main, "DB_PATH", self.db_path), patch.dict(
+            os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "", "LLM_API_KEY": ""}
+        ):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=main.app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post(
+                    "/ai/shopping-assistant",
+                    headers=headers,
+                    json={"question": "Is every product in stock?"},
+                )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertIn("1 of 4 products", result["answer"])
+        self.assertEqual(result["products"], [])
+        self.assertEqual(result["sources"], [])
 
     async def test_admin_must_select_a_vendor(self):
         headers = {"Authorization": f"Bearer {self._token(5, 'admin')}"}
