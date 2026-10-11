@@ -1,12 +1,15 @@
 import os
 import sqlite3
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import bcrypt
 import httpx
 
 from analytics_api import main
+from analytics_api import database
 from analytics_api.database import seed_demo_accounts
 
 
@@ -224,6 +227,69 @@ class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "Both DEMO_VENDOR_EMAIL"):
                 seed_demo_accounts(self.db)
+
+
+class DatabaseMigrationTests(unittest.TestCase):
+    def test_existing_unverified_accounts_are_enabled_and_tokens_removed(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            db_path = root / "shopsense.db"
+            connection = sqlite3.connect(db_path)
+            connection.executescript(
+                """
+                CREATE TABLE admins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    email_verified INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE vendors (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    full_name TEXT NOT NULL,
+                    business_name TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    phone TEXT,
+                    business_address TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    email_verified INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE email_verifications (
+                    account_type TEXT NOT NULL,
+                    account_id INTEGER NOT NULL,
+                    token_hash TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    sent_at TEXT NOT NULL
+                );
+                INSERT INTO admins (name, email, password, email_verified)
+                    VALUES ('Existing Admin', 'admin@example.com', 'hash', 0);
+                INSERT INTO vendors
+                    (full_name, business_name, email, password, email_verified)
+                    VALUES ('Existing Vendor', 'Existing Store', 'vendor@example.com', 'hash', 0);
+                INSERT INTO email_verifications
+                    VALUES ('vendor', 1, 'token-hash', 'expires', 'sent');
+                """
+            )
+            connection.close()
+
+            with (
+                patch.object(database, "DB_PATH", db_path),
+                patch.object(database, "PROJECT_ROOT", root),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                database.initialize_database()
+
+            migrated = sqlite3.connect(db_path)
+            self.assertEqual(migrated.execute("SELECT email_verified FROM admins").fetchone()[0], 1)
+            self.assertEqual(migrated.execute("SELECT email_verified FROM vendors").fetchone()[0], 1)
+            self.assertIsNone(
+                migrated.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'email_verifications'"
+                ).fetchone()
+            )
+            migrated.close()
 
 
 if __name__ == "__main__":
