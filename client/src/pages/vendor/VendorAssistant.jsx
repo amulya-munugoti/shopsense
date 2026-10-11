@@ -480,13 +480,6 @@ export default function VendorAssistant() {
                   </div>
                 )}
 
-                {/* No results note */}
-                {msg.sender === "ai" && !msg.isError && msg.products && msg.products.length === 0 && msg.id !== "welcome" && (
-                  <div className="mt-3 flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-soft)" }}>
-                    <Info size={12} />
-                    <span>No products were retrieved for this response.</span>
-                  </div>
-                )}
               </div>
             </div>
           ))}
@@ -563,7 +556,7 @@ export default function VendorAssistant() {
             </button>
           </form>
           <div className="mt-2 flex items-center justify-between text-[11px]" style={{ color: "var(--ink-soft)" }}>
-            <span>Answers grounded in the ShopSense catalog — no hallucinated products.</span>
+            <span>Answers use your catalog data; missing details are called out instead of guessed.</span>
             {status?.status === "offline"
               ? <span>API unavailable</span>
               : status?.indexedProducts === 0
