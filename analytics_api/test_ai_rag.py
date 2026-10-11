@@ -482,7 +482,7 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
                 response = await client.post(
                     "/ai/shopping-assistant",
                     headers=headers,
-                    json={"question": "Is every product in stock?"},
+                    json={"question": "is every product stock is full?"},
                 )
 
         self.assertEqual(response.status_code, 200)
