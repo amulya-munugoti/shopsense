@@ -208,6 +208,24 @@ class RetrievalTests(unittest.TestCase):
         self.assertIn("3 product(s) in the **Beauty** category", answer)
         self.assertNotIn("Soft Makeup Brush Set", answer)
 
+    def test_ungrammatical_does_available_lookup_bypasses_provider(self):
+        self.db.executemany(
+            "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (6, 1, "Daily Glow Skincare Set", "Skincare.", "Beauty", 1499, 2, ""),
+                (7, 1, "Soft Makeup Brush Set", "Brush set.", "Beauty", 899, 16, ""),
+                (8, 1, "Ionic Hair Dryer", "Hair dryer.", "Beauty", 2499, 50, ""),
+            ],
+        )
+        question = "Does mascara available?"
+        result = ai_rag.retrieve_products(self.db, question, 1)
+        answer = ai_rag.format_grounded_answer(question, result)
+
+        self.assertEqual(result["constraints"]["catalog_lookup_terms"], ["mascara"])
+        self.assertEqual(result["products"], [])
+        self.assertIn("couldn't find a **mascara** product", answer)
+        self.assertIn("3 product(s) in the **Beauty** category", answer)
+
     def test_product_lookup_finds_a_listed_product_by_name(self):
         self.db.execute(
             "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

@@ -306,8 +306,8 @@ export default function VendorAssistant() {
         style={{
           background: "var(--card)",
           borderColor: "var(--border)",
-          minHeight: "480px",
-          maxHeight: "680px"
+          height: "min(680px, max(360px, calc(100dvh - 400px)))",
+          minHeight: "360px"
         }}
       >
         {/* Messages */}
