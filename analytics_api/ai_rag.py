@@ -67,7 +67,7 @@ QUERY_SYNONYMS = {
 }
 
 GENERIC_QUERY_TERMS = STOP_WORDS | {
-    "anything", "available", "availability", "best", "budget", "buy", "cheap",
+    "actually", "anything", "available", "availability", "best", "budget", "buy", "cheap",
     "cheaper", "cheapest", "count", "currently", "expensive", "find", "good", "inr", "item",
     "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
     "need", "never", "not", "now", "number", "out", "priced", "price", "recommend", "reorder", "restock", "right",
@@ -176,7 +176,7 @@ def _query_constraints(query: str) -> dict[str, Any]:
     )
     negated_out_of_stock = out_of_stock and re.search(
         r"\b(?:not|never|no|don't|do not|isn't|aren't|is not|are not)\b.{0,20}$",
-        text[: out_of_stock.start()],
+        text[: out_of_stock.start()].rstrip(),
     )
     if negated_out_of_stock:
         constraints["stock"] = "in"
@@ -188,7 +188,7 @@ def _query_constraints(query: str) -> dict[str, Any]:
     elif out_of_stock:
         constraints["stock"] = "out"
     elif re.search(
-        r"\b(?:in[\s-]+stock|available|can i buy|can i get|ready to ship|ready for dispatch)\b",
+        r"\b(?:in[\s-]+stock|available|can (?:i|we) (?:actually )?(?:buy|get|order)|ready to ship|ready for dispatch)\b",
         text,
     ):
         constraints["stock"] = "in"

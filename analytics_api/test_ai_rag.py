@@ -139,6 +139,17 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(result["constraints"]["stock"], "in")
         self.assertTrue(all(product["stock"] > 0 for product in result["products"]))
 
+    def test_natural_buy_question_finds_available_products(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "Which products can I actually buy now?",
+            1,
+        )
+
+        self.assertEqual(result["constraints"]["stock"], "in")
+        self.assertTrue(result["products"])
+        self.assertTrue(all(product["stock"] > 0 for product in result["products"]))
+
 
 class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
     async def test_configured_gemini_receives_retrieved_catalog_context(self):
