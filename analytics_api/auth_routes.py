@@ -57,7 +57,10 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
         raise HTTPException(status_code=400, detail="Name and business name are required.")
     password_bytes = len(request.password.encode("utf-8"))
     if password_bytes > 72:
-        raise HTTPException(status_code=400, detail="Password must be 6-72 bytes long.")
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 6 characters and no more than 72 bytes.",
+        )
 
     password_hash = bcrypt.hashpw(request.password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
     try:
