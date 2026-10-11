@@ -448,7 +448,7 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_vendor_token_controls_catalog_scope_and_response_shape(self):
-        headers = {"Authorization": f"Bearer {self._token(1, 'vendor')}"}
+        headers = {"Authorization": "Bearer " + self._token(1, "vendor")}
         body = {
             "question": "Show my products",
             "vendorId": 2,

@@ -9,8 +9,7 @@ import {
   CheckCircle2,
   HelpCircle,
   TrendingUp,
-  AlertCircle,
-  Info
+  AlertCircle
 } from "lucide-react";
 import api from "../../lib/api";
 

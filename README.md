@@ -140,7 +140,7 @@ The API and frontend are separate processes: keep `npm run dev` running in the r
 
 ### 4. AI Provider (Optional)
 
-Set one of these environment variables in `server/.env` to enable LLM-generated answer synthesis over retrieved catalog products. Python loads the same `server/.env` for local use; Docker Compose reads the root `.env.example`. Retrieval, stock/price filters, product cards, and source data remain grounded in the authenticated vendor's live catalog. Without a provider key (or if a provider is unavailable), the Python service uses its local grounded response generator.
+Set one of these environment variables in `server/.env` to enable conversational answers synthesized from the authenticated vendor's live catalog. The assistant sends the full catalog (up to 200 products) to the configured provider so general catalog questions can be answered even when the search retriever finds no direct product match. It only displays product cards for products relevant to the question. Without a valid provider key (or if the provider is unavailable), the local response generator handles supported catalog filters and otherwise says when it cannot verify an answer; it cannot provide GPT-style open-ended answers offline. Python loads the same `server/.env` for local use; Docker Compose reads the root `.env.example`.
 
 ```env
 # Google Gemini (recommended)
