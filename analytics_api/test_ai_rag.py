@@ -288,6 +288,63 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
         finally:
             db.close()
 
+    async def test_general_question_uses_full_vendor_catalog_even_without_retrieval_hits(self):
+        db = make_catalog()
+        results = ai_rag.retrieve_products(db, "Can you summarize my product range?", 1)
+        requests = []
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"choices": [{"message": {"content": "Your catalog covers sports, electronics, and accessories."}}]}
+
+        class FakeClient:
+            def __init__(self, timeout):
+                self.timeout = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return None
+
+            async def post(self, url, **kwargs):
+                requests.append((url, kwargs))
+                return FakeResponse()
+
+        try:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "test-openai-key"}):
+                with patch("analytics_api.ai_rag.httpx.AsyncClient", FakeClient):
+                    answer, provider = await ai_rag.generate_answer(
+                        "Can you summarize my product range?", results
+                    )
+
+            self.assertEqual(results["products"], [])
+            self.assertEqual(answer, "Your catalog covers sports, electronics, and accessories.")
+            self.assertEqual(provider, "OpenAI + Python RAG")
+            prompt = requests[0][1]["json"]["messages"][1]["content"]
+            self.assertIn("Flex Yoga Mat", prompt)
+            self.assertIn("Everyday Laptop Backpack", prompt)
+            self.assertNotIn("Yoga Starter Mat", prompt)
+            self.assertIn('"complete": true', prompt)
+        finally:
+            db.close()
+
+    async def test_unavailable_provider_does_not_claim_unknown_question_has_no_match(self):
+        db = make_catalog()
+        question = "What is my business's customer satisfaction?"
+        results = ai_rag.retrieve_products(db, question, 1)
+        try:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "", "LLM_API_KEY": ""}):
+                answer, provider = await ai_rag.generate_answer(question, results)
+
+            self.assertIn("can’t verify an answer", answer)
+            self.assertEqual(provider, "Python Grounded Catalog RAG (Local)")
+        finally:
+            db.close()
+
     async def test_gemini_failure_falls_back_to_openai(self):
         db = make_catalog()
         results = ai_rag.retrieve_products(db, "Show fitness products", 1)
