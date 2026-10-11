@@ -67,7 +67,7 @@ export default function Register() {
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-soft)" }}>Password <span style={{ color: "var(--danger)" }}>*</span></label>
             <div className="relative">
-              <input required minLength={8} maxLength={72} type={showPassword ? "text" : "password"} value={form.password} onChange={update("password")} placeholder="8 to 72 characters" className="w-full px-3.5 py-2.5 pr-11 rounded-lg text-sm focus-ring" style={{ border: "1px solid var(--border)", background: "var(--surface)" }} />
+              <input required minLength={6} maxLength={72} type={showPassword ? "text" : "password"} value={form.password} onChange={update("password")} placeholder="6 to 72 characters" className="w-full px-3.5 py-2.5 pr-11 rounded-lg text-sm focus-ring" style={{ border: "1px solid var(--border)", background: "var(--surface)" }} />
               <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md focus-ring" style={{ color: "var(--ink-soft)" }} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword}>{showPassword ? <Eye size={17} /> : <EyeOff size={17} />}</button>
             </div>
           </div>

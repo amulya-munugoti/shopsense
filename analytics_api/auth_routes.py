@@ -20,7 +20,7 @@ class RegistrationRequest(BaseModel):
     fullName: str = Field(min_length=1, max_length=120)
     businessName: str = Field(min_length=1, max_length=160)
     email: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=8, max_length=72)
+    password: str = Field(min_length=6, max_length=72)
     phone: str | None = Field(default=None, max_length=40)
     businessAddress: str | None = Field(default=None, max_length=300)
 
@@ -55,8 +55,9 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
     business_name = request.businessName.strip()
     if not full_name or not business_name:
         raise HTTPException(status_code=400, detail="Name and business name are required.")
-    if len(request.password.encode("utf-8")) > 72:
-        raise HTTPException(status_code=400, detail="Password must be no longer than 72 bytes.")
+    password_bytes = len(request.password.encode("utf-8"))
+    if password_bytes < 6 or password_bytes > 72:
+        raise HTTPException(status_code=400, detail="Password must be 6-72 bytes long.")
 
     password_hash = bcrypt.hashpw(request.password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
     try:

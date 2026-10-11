@@ -163,8 +163,8 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
                 email = validate_email(raw_email, check_deliverability=False).normalized.lower()
             except EmailNotValidError as exc:
                 raise RuntimeError(f"DEMO_{role.upper()}_EMAIL must be a valid email address.") from exc
-            if len(password.encode("utf-8")) < 8 or len(password.encode("utf-8")) > 72:
-                raise RuntimeError(f"DEMO_{role.upper()}_PASSWORD must be 8-72 bytes long.")
+            if len(password.encode("utf-8")) < 6 or len(password.encode("utf-8")) > 72:
+                raise RuntimeError(f"DEMO_{role.upper()}_PASSWORD must be 6-72 bytes long.")
             password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
 
             if role == "admin":
