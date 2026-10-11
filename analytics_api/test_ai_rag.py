@@ -89,6 +89,26 @@ class RetrievalTests(unittest.TestCase):
 
         self.assertEqual(result["products"][0]["name"], "Everyday Laptop Backpack")
 
+    def test_high_stock_phrase_returns_the_product_with_most_units(self):
+        question = "which product is high stock"
+        result = ai_rag.retrieve_products(self.db, question, 1)
+        answer = ai_rag.format_grounded_answer(question, result)
+
+        self.assertEqual(result["constraints"]["ranking"], "highest_stock")
+        self.assertEqual(result["products"][0]["name"], "Flex Yoga Mat")
+        self.assertEqual(result["products"][0]["stock"], 9)
+        self.assertEqual(answer, "The highest stock is: **Flex Yoga Mat** (9 units).")
+
+    def test_most_stock_question_ranks_only_requested_category(self):
+        result = ai_rag.retrieve_products(
+            self.db,
+            "Which Electronics product has the most stock?",
+            1,
+        )
+
+        self.assertEqual(result["constraints"]["ranking"], "highest_stock")
+        self.assertEqual([product["name"] for product in result["products"]], ["Smart Fitness Band"])
+
     def test_expensive_product_returns_only_the_highest_priced_match(self):
         result = ai_rag.retrieve_products(self.db, "I need an expensive product", 1)
 
@@ -556,6 +576,29 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("1 of 4 products", result["answer"])
         self.assertEqual(result["products"], [])
         self.assertEqual(result["sources"], [])
+
+    async def test_high_stock_question_is_answered_without_external_provider(self):
+        headers = {"Authorization": "Bearer " + self._token(1, "vendor")}
+        with patch.object(main, "DB_PATH", self.db_path), patch.dict(
+            os.environ, {"GEMINI_API_KEY": "test-key", "OPENAI_API_KEY": ""}
+        ), patch(
+            "analytics_api.ai_rag._generate_text",
+            side_effect=AssertionError("stock ranking must use live catalog data"),
+        ):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=main.app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post(
+                    "/ai/shopping-assistant",
+                    headers=headers,
+                    json={"question": "which product is high stock"},
+                )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertIn("Flex Yoga Mat", result["answer"])
+        self.assertIn("9 units", result["answer"])
 
     async def test_admin_must_select_a_vendor(self):
         headers = {"Authorization": f"Bearer {self._token(5, 'admin')}"}

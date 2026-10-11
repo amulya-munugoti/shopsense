@@ -307,6 +307,7 @@ async def shopping_assistant(
         results["constraints"]["count"]
         or results["constraints"]["stock_check"]
         or results["constraints"]["catalog_lookup_terms"]
+        or results["constraints"]["ranking"] in {"highest_stock", "lowest_stock"}
     ):
         answer = ai_rag.format_grounded_answer(question, results)
     else:

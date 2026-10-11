@@ -69,7 +69,7 @@ QUERY_SYNONYMS = {
 GENERIC_QUERY_TERMS = STOP_WORDS | {
     "actually", "all", "anything", "available", "availability", "best", "budget", "buy", "cheap",
     "cheaper", "cheapest", "costly", "count", "currently", "expensive", "find", "good", "inr", "item",
-    "every", "full", "fully", "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
+    "every", "full", "fully", "high", "higher", "highest", "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
     "just", "need", "never", "not", "now", "number", "only", "out", "priced", "price", "recommend", "reorder", "restock", "right",
     "catalog", "sell", "selling", "stock", "stocked", "stuff", "suggest", "than", "thing", "things",
     "thousand", "today", "top", "first", "total", "unit", "units", "want", "rs", "rupee", "rupees",
@@ -263,9 +263,17 @@ def _query_constraints(query: str) -> dict[str, Any]:
         constraints["ranking"] = "priciest"
     elif re.search(r"\b(?:popular|best[- ]selling|top selling|trending|most sold|most ordered)\b", text):
         constraints["ranking"] = "popular"
-    elif re.search(r"\b(?:least|lowest|minimum|min)\s+(?:available\s+)?(?:stock|inventory)\b", text):
+    elif re.search(
+        r"\b(?:least|lowest|minimum|min|low)\s+(?:available\s+)?(?:stock|inventory)\b"
+        r"|\blow[\s-]+stock\b",
+        text,
+    ):
         constraints["ranking"] = "lowest_stock"
-    elif re.search(r"\b(?:most|highest|maximum|max)\s+(?:available\s+)?(?:stock|inventory)\b", text):
+    elif re.search(
+        r"\b(?:high|higher|highest|most|maximum|max)\s+(?:available\s+)?(?:stock|inventory)\b"
+        r"|\b(?:most|highest|best)[\s-]+stocked\b",
+        text,
+    ):
         constraints["ranking"] = "highest_stock"
 
     return constraints
@@ -522,6 +530,18 @@ def format_grounded_answer(question: str, results: dict[str, Any]) -> str:
                 f'{results["totalMatched"]} matching product(s).'
             )
         return f'Your catalog has **{results["totalMatched"]} matching product(s)**.'
+    if constraints["ranking"] in {"highest_stock", "lowest_stock"}:
+        products = results["products"]
+        if not products:
+            return "Your catalog has no products matching that stock query."
+        label = "highest" if constraints["ranking"] == "highest_stock" else "lowest"
+        if constraints["ranking"] == "highest_stock" and products[0]["stock"] == 0:
+            return "None of the matching products currently have stock available."
+        items = ", ".join(
+            f'**{product["name"]}** ({product["stock"]} units)'
+            for product in products
+        )
+        return f"The {label} stock is: {items}."
     if constraints["catalog_lookup_terms"]:
         lookup = results.get("catalogLookup", {})
         terms = " ".join(lookup.get("terms", constraints["catalog_lookup_terms"]))
