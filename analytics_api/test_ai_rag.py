@@ -137,6 +137,7 @@ class RetrievalTests(unittest.TestCase):
         )
 
         self.assertEqual(result["constraints"]["stock"], "in")
+        self.assertTrue(result["products"])
         self.assertTrue(all(product["stock"] > 0 for product in result["products"]))
 
     def test_natural_buy_question_finds_available_products(self):

@@ -18,7 +18,7 @@ STOP_WORDS = {
     "at", "be", "below", "between", "but", "by", "can", "do", "does", "for",
     "from", "get", "have", "how", "i", "in", "is", "it", "me", "more", "my",
     "of", "on", "or", "please", "product", "products", "show", "some", "the",
-    "there", "this", "to", "under", "up", "what", "which", "with", "you", "your",
+    "that", "there", "this", "to", "under", "up", "what", "which", "with", "you", "your",
 }
 
 CATEGORY_PATTERNS = (
