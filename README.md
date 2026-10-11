@@ -83,7 +83,7 @@ npm run dev
 
 This starts the Python API at `http://localhost:8000`; no Node/Express backend is used. The API initializes SQLite on first run and imports the historical XLSX dataset.
 
-Email verification is disabled. Vendor registration requires no SMTP setup; new applications are marked pending until an administrator approves them.
+Email verification is disabled. Vendor registration requires no SMTP setup; new applications are marked pending until an administrator approves them. Registration passwords must be 6-72 bytes long.
 
 To create the first administrator, set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, and a unique `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then call the one-time bootstrap endpoint. These credentials are for this installation; vendor registration cannot create an admin account. Keep the bootstrap password private and give access only to the intended administrator.
 
