@@ -71,7 +71,7 @@ GENERIC_QUERY_TERMS = STOP_WORDS | {
     "cheaper", "cheapest", "costly", "count", "currently", "expensive", "find", "good", "inr", "item",
     "every", "full", "fully", "items", "least", "looking", "low", "many", "maximum", "minimum", "most",
     "just", "need", "never", "not", "now", "number", "only", "out", "priced", "price", "recommend", "reorder", "restock", "right",
-    "sell", "selling", "stock", "stocked", "stuff", "suggest", "than", "thing", "things",
+    "catalog", "sell", "selling", "stock", "stocked", "stuff", "suggest", "than", "thing", "things",
     "thousand", "today", "top", "first", "total", "unit", "units", "want", "rs", "rupee", "rupees",
 }
 
@@ -94,6 +94,35 @@ PRODUCT_KINDS = (
 )
 
 AMOUNT = r"(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|lakhs?)?"
+PRODUCT_LOOKUP_FILLER = GENERIC_QUERY_TERMS | {
+    "available", "carry", "exist", "listed", "offer", "there",
+}
+PRODUCT_CATEGORY_HINTS = {
+    "lipstick": "beauty",
+}
+
+
+def _catalog_lookup_terms(query: str) -> list[str]:
+    has_category_query = any(pattern.search(query) for _, pattern in CATEGORY_PATTERNS)
+    is_lookup_question = bool(
+        re.search(
+            r"\b(?:is|are)\b.{0,80}\b(?:there|in\s+(?:the\s+)?catalog|listed|available)\b"
+            r"|\bcan\s+i\s+find\b.{0,60}\b(?:in\s+(?:the\s+)?catalog|there)\b",
+            query,
+            re.I,
+        )
+        or (
+            not has_category_query
+            and re.search(r"\bdo\s+you\s+(?:have|sell|carry|offer)\b", query, re.I)
+        )
+    )
+    if not is_lookup_question:
+        return []
+    return [
+        token
+        for token in _tokens(query)
+        if token not in PRODUCT_LOOKUP_FILLER and not token.isdigit()
+    ]
 
 
 def _tokens(text: str) -> list[str]:
@@ -145,6 +174,7 @@ def _query_constraints(query: str) -> dict[str, Any]:
         "maximum_price": None,
         "stock": None,
         "stock_check": None,
+        "catalog_lookup_terms": _catalog_lookup_terms(query),
         "category": None,
         "ranking": None,
         "result_limit": None,
@@ -400,6 +430,17 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
         eligible.sort(key=lambda item: (-item[0], int(item[1]["id"])))
 
     matches = [product for _, product in eligible]
+    lookup_terms = set(constraints["catalog_lookup_terms"])
+    if lookup_terms:
+        matches = [
+            product
+            for product in products
+            if lookup_terms.issubset(set(_tokens(product["name"])))
+            and (
+                not query_kind
+                or _product_kind(f'{product["name"]} {product["category"]}') == query_kind
+            )
+        ]
     count = len(matches)
     total_units = sum(int(product["stock"]) for product in matches)
     ranking_limit = (
@@ -409,6 +450,8 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
     selected = matches[:ranking_limit]
     if constraints["count"] or constraints["stock_check"]:
         selected = []
+    if lookup_terms:
+        selected = matches[:ranking_limit]
     result = {
         "products": [_serialize_product(product) for product in selected],
         "totalMatched": count,
@@ -424,6 +467,20 @@ def retrieve_products(db, query: str, vendor_id: int, history: list[dict[str, An
             "inStockCount": len(in_stock),
             "outOfStockNames": [product["name"] for product in out_of_stock],
             "totalUnits": sum(int(product["stock"]) for product in products),
+        }
+    if lookup_terms:
+        hint_category = next(
+            (PRODUCT_CATEGORY_HINTS[term] for term in lookup_terms if term in PRODUCT_CATEGORY_HINTS),
+            None,
+        )
+        result["catalogLookup"] = {
+            "terms": sorted(lookup_terms),
+            "exactMatches": [_serialize_product(product) for product in matches],
+            "relatedCategory": hint_category,
+            "relatedCategoryCount": sum(
+                1 for product in products
+                if hint_category and product["category"].strip().lower() == hint_category
+            ),
         }
     return result
 
@@ -455,6 +512,25 @@ def format_grounded_answer(question: str, results: dict[str, Any]) -> str:
                 f'{results["totalMatched"]} matching product(s).'
             )
         return f'Your catalog has **{results["totalMatched"]} matching product(s)**.'
+    if constraints["catalog_lookup_terms"]:
+        lookup = results.get("catalogLookup", {})
+        terms = " ".join(lookup.get("terms", constraints["catalog_lookup_terms"]))
+        exact_matches = lookup.get("exactMatches", [])
+        if exact_matches:
+            items = ", ".join(
+                f'**{product["name"]}** ({product["stock"]} in stock)'
+                for product in exact_matches
+            )
+            return f"Yes, your catalog lists {items}."
+        related_count = lookup.get("relatedCategoryCount", 0)
+        category = lookup.get("relatedCategory")
+        if related_count and category:
+            return (
+                f"I couldn't find a **{terms}** product listed in your catalog. "
+                f"There {'is' if related_count == 1 else 'are'} {related_count} "
+                f"product(s) in the **{category.title()}** category, but none is listed as {terms}."
+            )
+        return f"I couldn't find a **{terms}** product listed in your catalog."
     if constraints["stock_check"]:
         summary = results.get("inventorySummary")
         if not summary or not summary["totalProducts"]:

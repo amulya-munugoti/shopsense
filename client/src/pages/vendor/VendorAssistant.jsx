@@ -187,6 +187,7 @@ export default function VendorAssistant() {
 
   const clearChat = () => {
     setError("");
+    setInput("");
     setMessages([
       {
         id: `welcome-${Date.now()}`,
@@ -310,7 +311,7 @@ export default function VendorAssistant() {
         }}
       >
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -510,13 +511,16 @@ export default function VendorAssistant() {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <div
+          className="sticky bottom-0 z-10 p-3 sm:p-4 border-t"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
             }}
-            className="flex items-center gap-3"
+            className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:flex sm:gap-3"
           >
             <input
               type="text"
@@ -525,7 +529,7 @@ export default function VendorAssistant() {
               onKeyDown={handleKeyDown}
               placeholder="Ask about products, prices, stock, categories…"
               disabled={loading}
-              className="flex-1 rounded-xl px-4 py-3 text-sm border focus:outline-none focus:ring-2 focus:ring-emerald-700/30 transition-all"
+              className="min-w-0 w-full flex-1 rounded-xl px-3 sm:px-4 py-3 text-sm border focus:outline-none focus:ring-2 focus:ring-emerald-700/30 transition-all"
               style={{
                 background: "var(--surface)",
                 borderColor: "var(--border)",
@@ -536,7 +540,7 @@ export default function VendorAssistant() {
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-40"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 sm:px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-40"
               style={{ background: "var(--primary)" }}
             >
               <Send size={15} />
@@ -546,12 +550,13 @@ export default function VendorAssistant() {
               type="button"
               onClick={clearChat}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold border transition-all hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40"
+              className="inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-3 text-sm font-semibold border transition-all hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40"
               style={{ borderColor: "var(--border)", color: "var(--ink)" }}
               title="Clear chat history"
+              aria-label="Clear chat history"
             >
               <RefreshCw size={15} />
-              <span className="hidden sm:inline">Clear</span>
+              <span>Clear</span>
             </button>
           </form>
           <div className="mt-2 flex items-center justify-between text-[11px]" style={{ color: "var(--ink-soft)" }}>

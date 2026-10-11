@@ -189,6 +189,37 @@ class RetrievalTests(unittest.TestCase):
         self.assertIn("Yes—all **4 products** currently have at least one unit in stock", answer)
         self.assertIn("not a maximum or target stock level", answer)
 
+    def test_missing_specific_product_gets_direct_catalog_lookup_answer(self):
+        self.db.executemany(
+            "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (6, 1, "Daily Glow Skincare Set", "Skincare.", "Beauty", 1499, 2, ""),
+                (7, 1, "Soft Makeup Brush Set", "Brush set.", "Beauty", 899, 16, ""),
+                (8, 1, "Ionic Hair Dryer", "Hair dryer.", "Beauty", 2499, 50, ""),
+            ],
+        )
+        question = "is lipstick there in the catalog"
+        result = ai_rag.retrieve_products(self.db, question, 1)
+        answer = ai_rag.format_grounded_answer(question, result)
+
+        self.assertEqual(result["constraints"]["catalog_lookup_terms"], ["lipstick"])
+        self.assertEqual(result["products"], [])
+        self.assertIn("couldn't find a **lipstick** product", answer)
+        self.assertIn("3 product(s) in the **Beauty** category", answer)
+        self.assertNotIn("Soft Makeup Brush Set", answer)
+
+    def test_product_lookup_finds_a_listed_product_by_name(self):
+        self.db.execute(
+            "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (6, 1, "Velvet Lipstick", "Long-wear lipstick.", "Beauty", 599, 7, ""),
+        )
+        question = "Do you have lipstick in the catalog?"
+        result = ai_rag.retrieve_products(self.db, question, 1)
+        answer = ai_rag.format_grounded_answer(question, result)
+
+        self.assertEqual([product["name"] for product in result["products"]], ["Velvet Lipstick"])
+        self.assertIn("Yes, your catalog lists **Velvet Lipstick** (7 in stock)", answer)
+
 
 class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
     async def test_configured_gemini_receives_retrieved_catalog_context(self):
