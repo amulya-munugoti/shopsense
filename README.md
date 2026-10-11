@@ -16,7 +16,7 @@ ShopSense combines a live vendor catalog management system with deep analytics d
 |---|---|
 | Backend API | Python, FastAPI |
 | Database | SQLite via Python's `sqlite3` |
-| Authentication | Email verification, JWT (7-day), bcrypt, RBAC |
+| Authentication | JWT (7-day), bcrypt, RBAC |
 | Frontend | React 19, Vite, React Router v6, Tailwind CSS |
 | Icons | lucide-react |
 | Analytics data | XLSX dataset import into SQLite on first run |
@@ -40,7 +40,7 @@ shopsense/
 │
 ├── analytics_api/            Python FastAPI backend (port 8000)
 │   ├── main.py               API, authentication, and analytics endpoints
-│   ├── auth_routes.py        Email verification and login
+│   ├── auth_routes.py        Account registration and login
 │   ├── database.py           SQLite schema, migrations, and dataset import
 │   ├── ai_rag.py             Python retrieval, constraints, and LLM generation
 │   ├── requirements.txt
@@ -83,15 +83,24 @@ npm run dev
 
 This starts the Python API at `http://localhost:8000`; no Node/Express backend is used. The API initializes SQLite on first run and imports the historical XLSX dataset.
 
-Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, and `SMTP_PASSWORD` in the root `.env`. Root `.env` values take precedence over legacy `server/.env` values. Gmail requires 2-Step Verification and a Google App Password; use that in `SMTP_PASSWORD`, not your regular account password. `SMTP_FROM` is optional and defaults to `SMTP_USERNAME`; `SMTP_FROM_EMAIL` remains supported as a legacy alias. Never put credentials in frontend code or commit them.
+Email verification is disabled. Vendor registration requires no SMTP setup; new applications are marked pending until an administrator approves them.
 
-To create the first administrator, set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, and a unique `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then call the one-time bootstrap endpoint. These are private credentials for this installation; there are no built-in or shared admin credentials, and vendor registration cannot create an admin account. Keep the bootstrap password private and give access only to the intended administrator.
+To create the first administrator, set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, and a unique `BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then call the one-time bootstrap endpoint. These credentials are for this installation; vendor registration cannot create an admin account. Keep the bootstrap password private and give access only to the intended administrator.
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/auth/bootstrap-admin
 ```
 
-The administrator must verify that mailbox before signing in. New vendor applications also require email verification before admin approval. Existing accounts are marked unverified during migration; their owners must use the sign-in page’s resend-verification flow. There are no shared demo credentials.
+For local demo accounts, change `APP_ENV=development` and set both `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD` and `DEMO_VENDOR_EMAIL` / `DEMO_VENDOR_PASSWORD` in `.env`. For example:
+
+```env
+DEMO_ADMIN_EMAIL=admin@demo.example.com
+DEMO_ADMIN_PASSWORD=ShopSenseDemo!2026
+DEMO_VENDOR_EMAIL=vendor@demo.example.com
+DEMO_VENDOR_PASSWORD=VendorDemo!2026
+```
+
+Restart the API to seed the approved vendor and admin accounts, then use these email/password pairs on the sign-in page. Demo accounts are rejected outside local development and when a deployment environment is detected. Existing accounts are made sign-in eligible during migration; vendor approval requirements remain in effect.
 
 To run the Python API in Docker:
 
@@ -110,7 +119,7 @@ After installing backend and frontend dependencies and configuring `.env`, start
 npm run local
 ```
 
-This runs the FastAPI backend and Vite frontend together. Open `http://localhost:5173`. Vite is configured to fail instead of silently choosing another port, so the verification link always points at the running local frontend. If port 5173 is busy, stop the process using it and rerun the command. Keep the terminal open while using the app; press `Ctrl+C` to stop both services.
+This runs the FastAPI backend and Vite frontend together. Open `http://localhost:5173`. Vite is configured to fail instead of silently choosing another port. If port 5173 is busy, stop the process using it and rerun the command. Keep the terminal open while using the app; press `Ctrl+C` to stop both services.
 
 To run only the backend, use `npm run dev`. To run only the frontend, use the commands below in a separate terminal.
 
@@ -155,16 +164,12 @@ JWT_SECRET=your_production_secret_here
 | `LLM_API_KEY` | Optional | Legacy alias for `GEMINI_API_KEY` |
 | `JWT_SECRET` | Recommended | JWT signing secret (defaults to dev value) |
 | `PYTHON_API_PORT` | Optional | Python API port (defaults to 8000) |
-| `CLIENT_ORIGIN` | Optional | Frontend origin used for verification links and CORS (local default is port 5173) |
+| `CLIENT_ORIGIN` | Optional | Additional frontend origin allowed by API CORS |
 | `DB_PATH` | Optional | SQLite database path |
-| `SMTP_HOST` | Required for registration | SMTP mail server host |
-| `SMTP_PORT` | Required for registration | SMTP port (587 with STARTTLS; 465 with SSL) |
-| `SMTP_USERNAME` | Required for registration | SMTP account username |
-| `SMTP_PASSWORD` | Required for registration | SMTP account password/app password |
-| `SMTP_FROM` | Optional | Sender address (defaults to `SMTP_USERNAME`; `SMTP_FROM_EMAIL` is a legacy alias) |
-| `SMTP_USE_SSL` | Optional | Use implicit TLS with port 465; defaults to STARTTLS with port 587 |
 | `BOOTSTRAP_ADMIN_EMAIL` | Initial setup | Email address for the first administrator |
 | `BOOTSTRAP_ADMIN_PASSWORD` | Initial setup | Unique 12-72 byte password for the first administrator |
+| `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD` | Local development only | Optional local demo administrator credentials |
+| `DEMO_VENDOR_EMAIL` / `DEMO_VENDOR_PASSWORD` | Local development only | Optional local demo vendor credentials; seeded as approved |
 
 ---
 
@@ -373,8 +378,6 @@ The assistant supports lightweight follow-up queries. The frontend sends the las
 ```
 POST /api/auth/login
 POST /api/auth/register
-POST /api/auth/verify-email
-POST /api/auth/resend-verification
 POST /api/auth/bootstrap-admin  (first administrator only)
 ```
 
@@ -382,7 +385,7 @@ All `/api/vendor/*` and `/api/analytics/*` endpoints require `Authorization: Bea
 
 ### Vendor Catalog
 
-Email verification must be completed before vendor/admin login. All protected `/api/*`
+Email verification is not required. Vendor accounts still need admin approval before login. All protected `/api/*`
 operations require a bearer JWT.
 
 ```
@@ -443,14 +446,13 @@ PATCH /api/admin/vendors/:id/status
 ## Authentication & Security
 
 - Registration and login are handled by FastAPI; JavaScript is used for the React frontend only
-- Email ownership must be verified through a time-limited email link before login
+- Account email addresses are not verified; admin approval remains required for vendor accounts
 - Passwords hashed with bcrypt (12 rounds)
 - Stateless JWT authentication with 7-day validity
 - Role-based access control: `vendor` and `admin` roles enforced by Python dependencies
 - Strict vendor data isolation: vendors can only read and modify their own catalog and sales data
 - AI API keys stored in environment variables only — never in frontend code or committed to source control
 - Input validation on all endpoints: negative stock, malformed prices, oversized requests all rejected
-- Email verification tokens are stored as hashes, expire after 30 minutes, and are invalidated when reissued
 
 ---
 
@@ -462,7 +464,7 @@ Run the Python test suites from the repository root:
 .\.venv\Scripts\python.exe -m pytest -q analytics_api
 ```
 
-The suite covers authentication/email verification, Python AI/RAG behavior, and migrated API routers.
+The suite covers authentication, local demo-account seeding, Python AI/RAG behavior, and migrated API routers.
 
 ---
 

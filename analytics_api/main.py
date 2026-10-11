@@ -177,12 +177,6 @@ class ProductContentRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if __package__:
-        from .auth_routes import log_email_configuration
-    else:
-        from auth_routes import log_email_configuration
-
-    log_email_configuration()
     initialize_database()
     (DB_PATH.parent.parent / "uploads").mkdir(parents=True, exist_ok=True)
     print(f"[ShopSense Analytics] DB path : {DB_PATH}")

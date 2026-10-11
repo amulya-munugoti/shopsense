@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { PackageSearch, Eye, EyeOff, Store, ShieldCheck, X } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/auth";
@@ -46,17 +46,12 @@ function removeLoginHistory(role, emailToRemove) {
 }
 
 export default function Login() {
-  const [searchParams] = useSearchParams();
   const [role, setRole] = useState("vendor");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verificationNotice, setVerificationNotice] = useState(() => searchParams.get("verified") === "1");
-  const [verificationRequired, setVerificationRequired] = useState(false);
-  const [resendMessage, setResendMessage] = useState("");
-  const [resending, setResending] = useState(false);
   const [loginHistory, setLoginHistory] = useState(() => getLoginHistory("vendor"));
   const [showEmailHistory, setShowEmailHistory] = useState(false);
   const navigate = useNavigate();
@@ -64,10 +59,7 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setVerificationNotice(false);
     setError("");
-    setVerificationRequired(false);
-    setResendMessage("");
     setLoading(true);
     try {
       const { data } = await api.post("/auth/login", { email, password, role });
@@ -81,25 +73,8 @@ export default function Login() {
           ? "The ShopSense API could not process this login. Check that the frontend points to the correct API URL."
           : "Cannot reach the ShopSense API. Start the backend or check VITE_API_URL in the frontend deployment."),
       );
-      setVerificationRequired(
-        err.response?.status === 403 &&
-        err.response?.headers?.["x-email-verification-required"] === "true"
-      );
     } finally {
       setLoading(false);
-    }
-  };
-
-  const resendVerification = async () => {
-    setResending(true);
-    setResendMessage("");
-    try {
-      const { data } = await api.post("/auth/resend-verification", { email, role });
-      setResendMessage(data.message);
-    } catch (err) {
-      setResendMessage(err.response?.data?.error || "Could not send a verification email. Please try again later.");
-    } finally {
-      setResending(false);
     }
   };
 
@@ -108,9 +83,6 @@ export default function Login() {
     setEmail("");
     setPassword("");
     setError("");
-    setVerificationRequired(false);
-    setResendMessage("");
-    setVerificationNotice(false);
     setLoginHistory(getLoginHistory(nextRole));
     setShowEmailHistory(false);
   };
@@ -178,11 +150,8 @@ export default function Login() {
           </p>
 
           <p className="-mt-5 mb-5 text-xs" style={{ color: "var(--ink-soft)" }}>
-            {isAdmin ? "Admin access is provisioned privately by the app owner. There is no public admin signup or shared demo password." : "Use the email address you registered with."}
+            {isAdmin ? "Admin access is provisioned by the app owner. Local demo access can be configured in the backend environment." : "Use the email address you registered with."}
           </p>
-
-          {verificationNotice && <div className="mb-4 text-sm px-4 py-3 rounded-lg" role="status" style={{ background: "var(--success-soft)", color: "var(--success)" }}>Email verified successfully. Sign in with the same email address you just verified.</div>}
-          {searchParams.get("resend") === "1" && <div className="mb-4 text-sm" style={{ color: "var(--ink-soft)" }}>Need a fresh verification link? Enter your email, choose your account type, then request one below.</div>}
 
           <div
             className="grid grid-cols-2 gap-1 rounded-xl p-1.5 mb-6"
@@ -222,23 +191,6 @@ export default function Login() {
               {error}
             </div>
           )}
-          {verificationRequired && (
-            <div className="mb-4 text-sm" style={{ color: "var(--ink-soft)" }}>
-              <button type="button" onClick={resendVerification} disabled={resending || !email.trim()} className="font-semibold underline disabled:opacity-60 focus-ring" style={{ color: "var(--primary)" }}>
-                {resending ? "Sending verification email…" : "Resend verification email"}
-              </button>
-              {resendMessage && <p className="mt-2" role="status">{resendMessage}</p>}
-            </div>
-          )}
-          {searchParams.get("resend") === "1" && !verificationRequired && (
-            <div className="mb-4 text-sm" style={{ color: "var(--ink-soft)" }}>
-              <button type="button" onClick={resendVerification} disabled={resending || !email.trim()} className="font-semibold underline disabled:opacity-60 focus-ring" style={{ color: "var(--primary)" }}>
-                {resending ? "Sending verification email…" : "Resend verification email"}
-              </button>
-              {resendMessage && <p className="mt-2" role="status">{resendMessage}</p>}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="relative">
               <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--ink-soft)" }}>
@@ -250,7 +202,6 @@ export default function Login() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  setVerificationNotice(false);
                   setShowEmailHistory(true);
                 }}
                 onFocus={() => setShowEmailHistory(true)}

@@ -1,21 +1,7 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, Eye, EyeOff, PackageSearch, ShieldCheck } from "lucide-react";
 import api from "../lib/api";
-
-const verificationRequests = new Map();
-
-function verifyEmailOnce(token) {
-  if (!verificationRequests.has(token)) {
-    const request = api.post("/auth/verify-email", { token });
-    verificationRequests.set(token, request);
-    request.then(
-      () => verificationRequests.delete(token),
-      () => verificationRequests.delete(token),
-    );
-  }
-  return verificationRequests.get(token);
-}
 
 export default function Register() {
   const [form, setForm] = useState({ fullName: "", businessName: "", email: "", password: "", phone: "", businessAddress: "" });
@@ -23,31 +9,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [developmentVerificationUrl, setDevelopmentVerificationUrl] = useState("");
-  const [verificationStatus, setVerificationStatus] = useState("idle");
-  const [verificationMessage, setVerificationMessage] = useState("");
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const verificationToken = searchParams.get("verifyEmailToken");
-
-  useEffect(() => {
-    if (!verificationToken) return;
-    setVerificationStatus("ready");
-  }, [verificationToken]);
-
-  const handleVerifyEmail = async () => {
-    if (!verificationToken || verificationStatus === "checking") return;
-    setVerificationStatus("checking");
-    setVerificationMessage("");
-    try {
-      const { data } = await verifyEmailOnce(verificationToken);
-      navigate("/login?verified=1", { replace: true, state: { message: data.message } });
-    } catch (err) {
-      setVerificationStatus("error");
-      setVerificationMessage(err.response?.data?.error || "This verification link is invalid, expired, or already used.");
-      setSearchParams({}, { replace: true });
-    }
-  };
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
@@ -56,8 +18,7 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/register", form);
-      setDevelopmentVerificationUrl(data.developmentVerificationUrl || "");
+      await api.post("/auth/register", form);
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong. Try again.");
@@ -70,28 +31,10 @@ export default function Register() {
     return <div className="min-h-screen flex items-center justify-center p-5" style={{ background: "var(--surface)" }}>
       <div className="w-full max-w-md text-center p-8 rounded-2xl shadow-lg shadow-emerald-950/5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
         <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--success-soft)" }}><CheckCircle2 size={28} style={{ color: "var(--success)" }} /></div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "var(--success)" }}>Verify your email</p>
-        <h2 className="font-display text-xl font-bold mb-3">{developmentVerificationUrl ? "Development email preview" : "Check your email."}</h2>
-        <p className="text-sm leading-6 mb-6" style={{ color: "var(--ink-soft)" }}>{developmentVerificationUrl ? "Development mode: no email was sent. Use this local link to verify your account." : `We sent a verification link to ${form.email}. Verify your email before an administrator can review your application.`}</p>
-        {developmentVerificationUrl && <a href={developmentVerificationUrl} className="block mb-5 text-sm font-semibold underline break-all" style={{ color: "var(--primary)" }}>Open local verification link</a>}
+        <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "var(--success)" }}>Application submitted</p>
+        <h2 className="font-display text-xl font-bold mb-3">Your account is awaiting review.</h2>
+        <p className="text-sm leading-6 mb-6" style={{ color: "var(--ink-soft)" }}>You can sign in after an administrator approves your vendor account.</p>
         <button onClick={() => navigate("/login")} className="w-full py-3 rounded-xl text-sm font-semibold text-white focus-ring" style={{ background: "var(--primary)" }}>Back to sign in</button>
-      </div>
-    </div>;
-  }
-
-  if (verificationStatus !== "idle") {
-    const isSuccess = verificationStatus === "success";
-    return <div className="min-h-screen flex items-center justify-center p-5" style={{ background: "var(--surface)" }}>
-      <div className="w-full max-w-md text-center p-8 rounded-2xl shadow-lg shadow-emerald-950/5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-        {isSuccess && <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--success-soft)" }}><CheckCircle2 size={28} style={{ color: "var(--success)" }} /></div>}
-        <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: isSuccess ? "var(--success)" : "var(--ink-soft)" }}>
-          {verificationStatus === "ready" ? "Confirm your email" : verificationStatus === "checking" ? "Verifying email" : isSuccess ? "Email verified" : "Verification failed"}
-        </p>
-        <h2 className="font-display text-xl font-bold mb-3">{verificationStatus === "ready" ? "Verify this email address?" : verificationStatus === "checking" ? "Please wait…" : isSuccess ? "You’re verified." : "We couldn’t verify this link."}</h2>
-        {verificationStatus === "ready" && <p className="text-sm leading-6 mb-6" style={{ color: "var(--ink-soft)" }}>Press the button below to confirm your email and continue to sign in.</p>}
-        {verificationMessage && <p className="text-sm leading-6 mb-6" style={{ color: "var(--ink-soft)" }}>{verificationMessage}</p>}
-        {verificationStatus === "ready" && <button onClick={handleVerifyEmail} className="w-full mb-4 py-3 rounded-xl text-sm font-semibold text-white focus-ring" style={{ background: "var(--primary)" }}>Verify email</button>}
-        {verificationStatus !== "checking" && <><Link to="/login?resend=1" className="block mb-4 text-sm font-semibold underline" style={{ color: "var(--primary)" }}>Request another verification email</Link><button onClick={() => navigate("/login")} className="w-full py-3 rounded-xl text-sm font-semibold text-white focus-ring" style={{ background: "var(--primary)" }}>Continue to sign in</button></>}
       </div>
     </div>;
   }
@@ -111,7 +54,7 @@ export default function Register() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "var(--primary-light)" }}>Vendor application</p>
             <h1 className="font-display text-2xl font-bold">Register your business</h1>
-            <p className="text-sm mt-1" style={{ color: "var(--ink-soft)" }}>Use an email address you can access. Verify it before an admin can approve your account.</p>
+            <p className="text-sm mt-1" style={{ color: "var(--ink-soft)" }}>An administrator must approve your account before you can sign in.</p>
           </div>
         </div>
 

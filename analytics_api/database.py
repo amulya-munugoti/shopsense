@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+import bcrypt
+from email_validator import EmailNotValidError, validate_email
 from openpyxl import load_workbook
 
 
@@ -24,7 +26,7 @@ CREATE TABLE IF NOT EXISTS admins (
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
-  email_verified INTEGER NOT NULL DEFAULT 0
+  email_verified INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS vendors (
@@ -37,7 +39,7 @@ CREATE TABLE IF NOT EXISTS vendors (
   business_address TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   joined_at TEXT NOT NULL DEFAULT (datetime('now')),
-  email_verified INTEGER NOT NULL DEFAULT 0
+  email_verified INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -108,16 +110,6 @@ CREATE TABLE IF NOT EXISTS analytics_order_items (
   FOREIGN KEY (product_id) REFERENCES analytics_products(product_id)
 );
 
-CREATE TABLE IF NOT EXISTS email_verifications (
-  account_type TEXT NOT NULL CHECK (account_type IN ('admin', 'vendor')),
-  account_id INTEGER NOT NULL,
-  token_hash TEXT NOT NULL UNIQUE,
-  expires_at TEXT NOT NULL,
-  sent_at TEXT NOT NULL,
-  verified_at TEXT,
-  PRIMARY KEY (account_type, account_id)
-);
-
 CREATE INDEX IF NOT EXISTS idx_analytics_orders_customer ON analytics_orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_orders_date ON analytics_orders(order_date);
 CREATE INDEX IF NOT EXISTS idx_analytics_order_items_product ON analytics_order_items(product_id);
@@ -130,6 +122,81 @@ CREATE INDEX IF NOT EXISTS idx_sales_vendor_product ON sales(vendor_id, product_
 
 def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
     return {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+
+
+def seed_demo_accounts(connection: sqlite3.Connection) -> None:
+    """Seed explicitly configured demo users only in a local development environment."""
+    admin_email = os.getenv("DEMO_ADMIN_EMAIL", "").strip()
+    admin_password = os.getenv("DEMO_ADMIN_PASSWORD", "")
+    vendor_email = os.getenv("DEMO_VENDOR_EMAIL", "").strip()
+    vendor_password = os.getenv("DEMO_VENDOR_PASSWORD", "")
+    configured = any((admin_email, admin_password, vendor_email, vendor_password))
+    if not configured:
+        return
+
+    is_development = os.getenv("APP_ENV", "").strip().lower() in {"development", "dev"}
+    deployment_markers = (
+        "RENDER",
+        "VERCEL",
+        "DYNO",
+        "K_SERVICE",
+        "AWS_LAMBDA_FUNCTION_NAME",
+        "WEBSITE_INSTANCE_ID",
+        "FUNCTIONS_WORKER_RUNTIME",
+        "RAILWAY_ENVIRONMENT",
+    )
+    deployed = any(os.getenv(key, "").strip() for key in deployment_markers)
+    if not is_development or deployed:
+        raise RuntimeError("DEMO_* accounts are supported only in a local development environment.")
+
+    accounts = (
+        ("admin", admin_email, admin_password),
+        ("vendor", vendor_email, vendor_password),
+    )
+    with connection:
+        for role, raw_email, password in accounts:
+            if not raw_email and not password:
+                continue
+            if not raw_email or not password:
+                raise RuntimeError(f"Both DEMO_{role.upper()}_EMAIL and DEMO_{role.upper()}_PASSWORD are required.")
+            try:
+                email = validate_email(raw_email, check_deliverability=False).normalized.lower()
+            except EmailNotValidError as exc:
+                raise RuntimeError(f"DEMO_{role.upper()}_EMAIL must be a valid email address.") from exc
+            if len(password.encode("utf-8")) < 8 or len(password.encode("utf-8")) > 72:
+                raise RuntimeError(f"DEMO_{role.upper()}_PASSWORD must be 8-72 bytes long.")
+            password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
+
+            if role == "admin":
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO admins (name, email, password, email_verified)
+                    VALUES ('Demo Admin', ?, ?, 1)
+                    """,
+                    (email, password_hash),
+                )
+                account = connection.execute(
+                    "SELECT password FROM admins WHERE lower(email) = ?",
+                    (email,),
+                ).fetchone()
+            else:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO vendors
+                        (full_name, business_name, email, password, status, email_verified)
+                    VALUES ('Demo Vendor', 'Demo Store', ?, ?, 'approved', 1)
+                    """,
+                    (email, password_hash),
+                )
+                account = connection.execute(
+                    "SELECT password FROM vendors WHERE lower(email) = ?",
+                    (email,),
+                ).fetchone()
+
+            if account is None or not bcrypt.checkpw(password.encode("utf-8"), account["password"].encode("utf-8")):
+                raise RuntimeError(
+                    f"Configured demo {role} email already belongs to an account with a different password."
+                )
 
 
 def _import_analytics_dataset(connection: sqlite3.Connection) -> None:
@@ -189,8 +256,11 @@ def initialize_database() -> None:
         for table in ("admins", "vendors"):
             if "email_verified" not in _columns(connection, table):
                 connection.execute(
-                    f"ALTER TABLE {table} ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0"
+                    f"ALTER TABLE {table} ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1"
                 )
+            connection.execute(f"UPDATE {table} SET email_verified = 1")
+        connection.execute("DROP TABLE IF EXISTS email_verifications")
+        seed_demo_accounts(connection)
         product_migrations = {
             "image_url": "TEXT",
             "seo_title": "TEXT NOT NULL DEFAULT ''",

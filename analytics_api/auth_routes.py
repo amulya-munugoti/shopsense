@@ -1,15 +1,8 @@
-"""Email-verified account registration and login endpoints."""
+"""Account registration and login endpoints."""
 
-import hashlib
-import html
-import logging
 import os
-import secrets
-import smtplib
-import ssl
+import sqlite3
 from datetime import datetime, timedelta, timezone
-from email.message import EmailMessage
-from urllib.parse import urlencode
 
 import bcrypt
 from email_validator import EmailNotValidError, validate_email
@@ -21,9 +14,6 @@ from .main import DBConn, JWT_ALGORITHM, JWT_SECRET
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-logger = logging.getLogger(__name__)
-VERIFICATION_TTL = timedelta(minutes=30)
-RESEND_COOLDOWN = timedelta(seconds=60)
 
 
 class RegistrationRequest(BaseModel):
@@ -41,15 +31,6 @@ class LoginRequest(BaseModel):
     role: str
 
 
-class VerifyEmailRequest(BaseModel):
-    token: str = Field(min_length=32, max_length=128)
-
-
-class ResendVerificationRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=254)
-    role: str
-
-
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -59,183 +40,6 @@ def _normalize_email(raw_email: str) -> str:
         return validate_email(raw_email.strip(), check_deliverability=False).normalized.lower()
     except EmailNotValidError as exc:
         raise HTTPException(status_code=400, detail="Enter a valid email address.") from exc
-
-
-def _smtp_settings() -> tuple[str, int, str, str, str, bool]:
-    host = os.getenv("SMTP_HOST", "").strip()
-    username = os.getenv("SMTP_USERNAME", "").strip()
-    password = os.getenv("SMTP_PASSWORD", "").strip()
-    sender = (
-        os.getenv("SMTP_FROM", "").strip()
-        or os.getenv("SMTP_FROM_EMAIL", "").strip()
-        or username
-    )
-    missing = [
-        name
-        for name, value in (
-            ("SMTP_HOST", host),
-            ("SMTP_USERNAME", username),
-            ("SMTP_PASSWORD", password),
-        )
-        if not value
-    ]
-    if missing:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Email delivery is not configured. Missing {', '.join(missing)} in the root .env.",
-        )
-    try:
-        port = int(os.getenv("SMTP_PORT", "587"))
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The email verification service is misconfigured.",
-        ) from exc
-    if not 1 <= port <= 65535:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The email verification service is misconfigured.",
-        )
-    use_ssl = os.getenv("SMTP_USE_SSL", "").lower() in {"1", "true", "yes"}
-    return host, port, username, password, sender, use_ssl
-
-
-def _email_delivery_mode() -> str:
-    """Console delivery is an explicit local-only preview and fails closed in production."""
-    mode = os.getenv("EMAIL_DELIVERY_MODE", "smtp").strip().lower()
-    if mode != "console":
-        return "smtp"
-    runtime = [os.getenv(key, "").strip().lower() for key in ("APP_ENV", "ENVIRONMENT", "NODE_ENV")]
-    deployed = any(os.getenv(key, "").strip() for key in (
-        "RENDER", "VERCEL", "DYNO", "K_SERVICE", "AWS_LAMBDA_FUNCTION_NAME",
-        "WEBSITE_INSTANCE_ID", "FUNCTIONS_WORKER_RUNTIME", "RAILWAY_ENVIRONMENT",
-    ))
-    explicitly_local = any(value in {"development", "dev", "test"} for value in runtime)
-    if deployed or "production" in runtime or not explicitly_local or os.getenv("ALLOW_DEV_EMAIL_PREVIEW", "").lower() != "true":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Development email preview is disabled for this environment.",
-        )
-    return "console"
-
-
-def log_email_configuration() -> None:
-    """Report SMTP readiness without logging credentials or mailbox names."""
-    try:
-        if _email_delivery_mode() == "console":
-            logger.warning("Development email preview enabled; verification links are logged locally and no email is sent")
-            return
-    except HTTPException as exc:
-        logger.error("Email configuration rejected: %s", exc.detail)
-        return
-    try:
-        host, port, _username, _password, _sender, use_ssl = _smtp_settings()
-    except HTTPException as exc:
-        logger.warning("SMTP configuration unavailable: %s", exc.detail)
-        return
-
-    transport = "implicit TLS" if use_ssl else "STARTTLS"
-    logger.info("SMTP configuration detected (host=%s port=%s transport=%s)", host, port, transport)
-
-
-def _send_verification_email(email: str, name: str, token: str) -> str | None:
-    client_origin = os.getenv("CLIENT_ORIGIN", "http://localhost:5173").rstrip("/")
-    query = urlencode({"verifyEmailToken": token})
-    verification_url = f"{client_origin}/register?{query}"
-
-    if _email_delivery_mode() == "console":
-        logger.warning("Development verification link for %s: %s", email, verification_url)
-        return verification_url
-
-    host, port, username, password, sender, use_ssl = _smtp_settings()
-
-    message = EmailMessage()
-    message["Subject"] = "Verify your ShopSense email address"
-    message["From"] = sender
-    message["To"] = email
-    message.set_content(
-        f"Hello {name},\n\n"
-        f"Verify your email address to continue with ShopSense:\n{verification_url}\n\n"
-        "This link expires in 30 minutes. If you did not request this, you can ignore this email."
-    )
-    message.add_alternative(
-        "<p>Hello "
-        + html.escape(name)
-        + ",</p><p>Verify your email address to continue with ShopSense:</p>"
-        + '<p><a href="'
-        + html.escape(verification_url, quote=True)
-        + '">Verify email address</a></p>'
-        + "<p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>",
-        subtype="html",
-    )
-
-    transport = "implicit TLS" if use_ssl else "STARTTLS"
-    logger.info("Attempting verification email delivery (host=%s port=%s transport=%s)", host, port, transport)
-    try:
-        if use_ssl:
-            with smtplib.SMTP_SSL(host, port, context=ssl.create_default_context(), timeout=15) as client:
-                client.login(username, password)
-                client.send_message(message)
-        else:
-            with smtplib.SMTP(host, port, timeout=15) as client:
-                client.ehlo()
-                client.starttls(context=ssl.create_default_context())
-                client.ehlo()
-                client.login(username, password)
-                client.send_message(message)
-        logger.info("Verification email delivered successfully")
-    except (OSError, smtplib.SMTPException) as exc:
-        logger.error("Verification email delivery failed (error_type=%s)", type(exc).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="We could not send the verification email. Please try again later.",
-        ) from exc
-
-
-def _issue_verification(
-    db,
-    account_type: str,
-    account_id: int,
-    email: str,
-    name: str,
-) -> str | None:
-    row = db.execute(
-        "SELECT sent_at FROM email_verifications WHERE account_type = ? AND account_id = ?",
-        (account_type, account_id),
-    ).fetchone()
-    if row:
-        try:
-            sent_at = datetime.fromisoformat(row["sent_at"])
-        except ValueError:
-            sent_at = _now() - RESEND_COOLDOWN
-        if _now() - sent_at < RESEND_COOLDOWN:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Please wait before requesting another verification email.",
-            )
-
-    token = secrets.token_urlsafe(32)
-    sent_at = _now()
-    expires_at = sent_at + VERIFICATION_TTL
-    db.execute(
-        """
-        INSERT INTO email_verifications (account_type, account_id, token_hash, expires_at, sent_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(account_type, account_id) DO UPDATE SET
-            token_hash = excluded.token_hash,
-            expires_at = excluded.expires_at,
-            sent_at = excluded.sent_at,
-            verified_at = NULL
-        """,
-        (
-            account_type,
-            account_id,
-            hashlib.sha256(token.encode("utf-8")).hexdigest(),
-            expires_at.isoformat(),
-            sent_at.isoformat(),
-        ),
-    )
-    return _send_verification_email(email, name, token)
 
 
 def _account_table(role: str) -> str:
@@ -254,21 +58,14 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
     if len(request.password.encode("utf-8")) > 72:
         raise HTTPException(status_code=400, detail="Password must be no longer than 72 bytes.")
 
-    existing = db.execute(
-        "SELECT 1 FROM vendors WHERE lower(email) = ?",
-        (email,),
-    ).fetchone()
-    if existing:
-        raise HTTPException(status_code=409, detail="An account with this email already exists.")
-
     password_hash = bcrypt.hashpw(request.password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
     try:
         with db:
-            cursor = db.execute(
+            db.execute(
                 """
                 INSERT INTO vendors
                     (full_name, business_name, email, password, phone, business_address, status, email_verified)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', 1)
                 """,
                 (
                     full_name,
@@ -279,10 +76,7 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
                     request.businessAddress.strip() if request.businessAddress else None,
                 ),
             )
-            development_url = _issue_verification(db, "vendor", cursor.lastrowid, email, full_name)
-    except HTTPException:
-        raise
-    except Exception as exc:
+    except sqlite3.IntegrityError as exc:
         if "UNIQUE constraint failed" in str(exc):
             raise HTTPException(
                 status_code=409,
@@ -290,95 +84,10 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
             ) from exc
         raise
 
-    response = {
-        "message": "Registration submitted. Verify your email address before admin review.",
+    return {
+        "message": "Registration submitted. Your account is ready for admin review.",
         "email": email,
     }
-    if development_url:
-        response["developmentVerificationUrl"] = development_url
-        response["message"] = "Development preview only: no email was sent. Open the local verification link."
-    return response
-
-
-@router.post("/verify-email")
-def verify_email(request: VerifyEmailRequest, db: DBConn) -> dict[str, str]:
-    token_hash = hashlib.sha256(request.token.encode("utf-8")).hexdigest()
-    verification = db.execute(
-        "SELECT account_type, account_id, expires_at FROM email_verifications WHERE token_hash = ?",
-        (token_hash,),
-    ).fetchone()
-    if not verification:
-        raise HTTPException(status_code=400, detail="This verification link is invalid, expired, or already used.")
-    try:
-        expires_at = datetime.fromisoformat(verification["expires_at"])
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="This verification link is invalid or has expired.") from exc
-    if expires_at <= _now():
-        with db:
-            db.execute("DELETE FROM email_verifications WHERE token_hash = ?", (token_hash,))
-        raise HTTPException(status_code=400, detail="This verification link is invalid, expired, or already used.")
-
-    table = _account_table(verification["account_type"])
-    with db:
-        result = db.execute(
-            f"UPDATE {table} SET email_verified = 1 WHERE id = ?",
-            (verification["account_id"],),
-        )
-        if result.rowcount != 1:
-            raise HTTPException(status_code=400, detail="This verification link is invalid, expired, or already used.")
-        db.execute(
-            "DELETE FROM email_verifications WHERE token_hash = ?",
-            (token_hash,),
-        )
-    return {"message": "Email verified successfully. You can now log in."}
-
-
-@router.post("/resend-verification")
-def resend_verification(request: ResendVerificationRequest, db: DBConn) -> dict[str, str]:
-    delivery_mode = _email_delivery_mode()
-    if delivery_mode == "smtp":
-        # Configuration is global, so report it consistently without checking
-        # whether this address belongs to an account.
-        _smtp_settings()
-
-    table = _account_table(request.role)
-    email = _normalize_email(request.email)
-    account = db.execute(
-        "SELECT id, name AS display_name, email_verified FROM admins "
-        "WHERE lower(email) = ?"
-        if table == "admins"
-        else "SELECT id, full_name AS display_name, email_verified FROM vendors "
-        "WHERE lower(email) = ?",
-        (email,),
-    ).fetchone()
-    if account and not account["email_verified"]:
-        try:
-            with db:
-                _issue_verification(
-                    db,
-                    request.role,
-                    account["id"],
-                    email,
-                    account["display_name"],
-                )
-        except HTTPException as exc:
-            if exc.status_code != status.HTTP_429_TOO_MANY_REQUESTS:
-                raise
-            # Keep the cooldown response indistinguishable from unknown accounts.
-            # Delivery failures must reach the caller so the user is not told the
-            # verification email was requested when it could not be sent.
-            logger.info("Verification resend was not completed (status=%s)", exc.status_code)
-    if delivery_mode == "console":
-        message = (
-            "Development email preview is active; no email was sent. "
-            "If this account needs verification, its local link appears in the API terminal."
-        )
-    else:
-        message = (
-            "If the account exists and needs verification, a new verification link has been requested. "
-            "Check the inbox if email delivery is configured."
-        )
-    return {"message": message}
 
 
 @router.post("/login")
@@ -407,12 +116,6 @@ def login(request: LoginRequest, db: DBConn) -> dict:
         password_valid = False
     if not password_valid:
         raise HTTPException(status_code=401, detail=f"Invalid {request.role} credentials.")
-    if not account["email_verified"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your email before logging in. Use the resend verification option if needed.",
-            headers={"X-Email-Verification-Required": "true"},
-        )
 
     if request.role == "vendor":
         if account["status"] == "pending":
@@ -450,7 +153,7 @@ def login(request: LoginRequest, db: DBConn) -> dict:
 
 @router.post("/bootstrap-admin", status_code=status.HTTP_201_CREATED)
 def bootstrap_admin(db: DBConn) -> dict[str, str]:
-    """Create the first admin from environment credentials; the email still must be verified."""
+    """Create the first administrator from configured environment credentials."""
     raw_email = os.getenv("BOOTSTRAP_ADMIN_EMAIL", "").strip()
     name = os.getenv("BOOTSTRAP_ADMIN_NAME", "").strip() or "ShopSense Administrator"
     password = os.getenv("BOOTSTRAP_ADMIN_PASSWORD", "")
@@ -465,26 +168,13 @@ def bootstrap_admin(db: DBConn) -> dict[str, str]:
             status_code=400,
             detail="The bootstrap password must be 12-72 bytes long.",
         )
-    if db.execute("SELECT 1 FROM admins WHERE email_verified = 1 LIMIT 1").fetchone():
-        raise HTTPException(status_code=409, detail="A verified administrator is already configured.")
-    account = db.execute(
-        "SELECT id, password, email_verified FROM admins WHERE lower(email) = ?",
-        (email,),
-    ).fetchone()
-    if account:
-        if account["email_verified"] or not bcrypt.checkpw(
-            password.encode("utf-8"), account["password"].encode("utf-8")
-        ):
-            raise HTTPException(status_code=409, detail="The configured administrator cannot be bootstrapped.")
-        admin_id = account["id"]
-    else:
-        password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
-        with db:
-            cursor = db.execute(
-                "INSERT INTO admins (name, email, password, email_verified) VALUES (?, ?, ?, 0)",
-                (name, email, password_hash),
-            )
-        admin_id = cursor.lastrowid
+    if db.execute("SELECT 1 FROM admins LIMIT 1").fetchone():
+        raise HTTPException(status_code=409, detail="An administrator is already configured.")
+
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
     with db:
-        _issue_verification(db, "admin", admin_id, email, name)
-    return {"message": "Administrator created. Verify its email address before signing in."}
+        db.execute(
+            "INSERT INTO admins (name, email, password, email_verified) VALUES (?, ?, ?, 1)",
+            (name, email, password_hash),
+        )
+    return {"message": "Administrator created. You can sign in now."}
