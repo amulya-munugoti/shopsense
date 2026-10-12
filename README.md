@@ -324,7 +324,7 @@ User Question
       │
       ▼
 [5] Context Construction
-    • Up to 200 live vendor products supplied to the LLM, including stored descriptions and verified vendor hints
+    • Up to 200 live vendor products plus relevant matches beyond that window, including descriptions and verified vendor hints
     • Retrieved products and relevant vendor sales fields are used for answer citations and product cards
     • Incomplete catalogs are identified so the LLM does not claim whole-catalog totals
     • Product cards and source citations are built separately from verified retrieved records
