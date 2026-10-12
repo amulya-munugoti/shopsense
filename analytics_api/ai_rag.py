@@ -614,12 +614,12 @@ def _configured_provider() -> tuple[str | None, str | None]:
 
 def _configured_providers() -> list[tuple[str, str]]:
     providers = []
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("LLM_API_KEY")
-    if gemini_key and gemini_key.strip() and not gemini_key.strip().lower().startswith("your_"):
-        providers.append(("Gemini", gemini_key.strip()))
     openai_key = os.getenv("OPENAI_API_KEY")
     if openai_key and openai_key.strip() and not openai_key.strip().lower().startswith("your_"):
         providers.append(("OpenAI", openai_key.strip()))
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("LLM_API_KEY")
+    if gemini_key and gemini_key.strip() and not gemini_key.strip().lower().startswith("your_"):
+        providers.append(("Gemini", gemini_key.strip()))
     return providers
 
 

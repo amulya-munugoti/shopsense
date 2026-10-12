@@ -343,6 +343,48 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
         finally:
             db.close()
 
+    async def test_openai_is_preferred_when_both_providers_are_configured(self):
+        db = make_catalog()
+        results = ai_rag.retrieve_products(db, "Show fitness products", 1)
+        requests = []
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"choices": [{"message": {"content": "GPT catalog answer."}}]}
+
+        class FakeClient:
+            def __init__(self, timeout):
+                self.timeout = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return None
+
+            async def post(self, url, **kwargs):
+                requests.append((url, kwargs))
+                return FakeResponse()
+
+        try:
+            with patch.dict(
+                os.environ,
+                {"GEMINI_API_KEY": "test-gemini-key", "OPENAI_API_KEY": "test-openai-key"},
+            ), patch("analytics_api.ai_rag.httpx.AsyncClient", FakeClient):
+                answer, provider = await ai_rag.generate_answer("Show fitness products", results)
+
+            self.assertEqual(answer, "GPT catalog answer.")
+            self.assertEqual(provider, "OpenAI + Python RAG")
+            self.assertEqual(len(requests), 1)
+            self.assertIn("api.openai.com", requests[0][0])
+            self.assertEqual(requests[0][1]["json"]["model"], "gpt-4o-mini")
+            self.assertEqual(ai_rag._configured_provider()[0], "OpenAI")
+        finally:
+            db.close()
+
     async def test_unavailable_provider_does_not_claim_unknown_question_has_no_match(self):
         db = make_catalog()
         results = ai_rag.retrieve_products(db, "What is my business's customer satisfaction?", 1)
@@ -431,7 +473,7 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
         finally:
             db.close()
 
-    async def test_gemini_failure_falls_back_to_openai(self):
+    async def test_openai_failure_falls_back_to_gemini(self):
         db = make_catalog()
         results = ai_rag.retrieve_products(db, "Show fitness products", 1)
         request_urls = []
@@ -448,7 +490,7 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
 
             async def post(self, url, **_kwargs):
                 request_urls.append(url)
-                if "generativelanguage.googleapis.com" in url:
+                if "api.openai.com" in url:
                     request = httpx.Request("POST", url)
                     response = httpx.Response(503, request=request)
                     response.raise_for_status()
@@ -457,9 +499,11 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
                     (),
                     {
                         "raise_for_status": lambda self: None,
-                        "json": lambda self: {
-                            "choices": [{"message": {"content": "OpenAI grounded answer."}}]
-                        },
+                        "json": lambda self: (
+                            {"candidates": [{"content": {"parts": [{"text": "Gemini grounded answer."}]}}]}
+                            if "generativelanguage.googleapis.com" in request_urls[-1]
+                            else {"choices": [{"message": {"content": "OpenAI grounded answer."}}]}
+                        ),
                     },
                 )()
 
@@ -477,11 +521,11 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
                         "Show fitness products", results
                     )
 
-            self.assertEqual(answer, "OpenAI grounded answer.")
-            self.assertEqual(provider, "OpenAI + Python RAG")
+            self.assertEqual(answer, "Gemini grounded answer.")
+            self.assertEqual(provider, "Gemini + Python RAG")
             self.assertEqual(len(request_urls), 2)
-            self.assertIn("gemini", request_urls[0])
-            self.assertIn("openai", request_urls[1])
+            self.assertIn("openai", request_urls[0])
+            self.assertIn("gemini", request_urls[1])
         finally:
             db.close()
 

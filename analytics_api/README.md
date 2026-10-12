@@ -60,9 +60,11 @@ The Python API initializes and migrates the shared SQLite schema at startup and 
 historical XLSX data when the analytics tables are empty. Set `DB_PATH` to override its
 database location.
 
-Gemini and OpenAI keys are optional. Without a configured provider, or when a provider is
-unavailable, the assistant uses a grounded local response over the signed-in vendor's live
-catalog.
+OpenAI and Gemini keys are optional. When both are configured, OpenAI GPT-4o mini is tried
+first and Gemini is used if OpenAI is unavailable. Without a configured provider, or when
+both providers are unavailable, the assistant uses a grounded local response over the
+signed-in vendor's live catalog. GPT-style open-ended answers require a valid OpenAI API
+key with API access; a ChatGPT subscription alone may not include API usage.
 
 ## Tests
 

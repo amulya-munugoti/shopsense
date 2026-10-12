@@ -143,11 +143,11 @@ The API and frontend are separate processes: keep `npm run dev` running in the r
 Set one of these environment variables in `server/.env` to enable conversational answers synthesized from the authenticated vendor's live catalog. The assistant sends the full catalog (up to 200 products) to the configured provider so general catalog questions can be answered even when the search retriever finds no direct product match. It only displays product cards for products relevant to the question. Without a valid provider key (or if the provider is unavailable), the local response generator handles supported catalog filters and otherwise says when it cannot verify an answer; it cannot provide GPT-style open-ended answers offline. Python loads the same `server/.env` for local use; Docker Compose reads the root `.env.example`.
 
 ```env
-# Google Gemini (recommended)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# OR OpenAI
+# OpenAI GPT (preferred; requires an OpenAI API key with API access)
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional Gemini fallback
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # JWT secret (override default dev secret in production)
 JWT_SECRET=your_production_secret_here
@@ -159,8 +159,8 @@ JWT_SECRET=your_production_secret_here
 
 | Variable | Required | Description |
 |---|---|---|
-| `GEMINI_API_KEY` | Optional | Google Gemini API key for LLM generation |
-| `OPENAI_API_KEY` | Optional | OpenAI API key (used if Gemini not configured) |
+| `OPENAI_API_KEY` | Optional | OpenAI API key; GPT-4o mini is preferred when configured |
+| `GEMINI_API_KEY` | Optional | Google Gemini API key; used as fallback if OpenAI is unavailable |
 | `LLM_API_KEY` | Optional | Legacy alias for `GEMINI_API_KEY` |
 | `JWT_SECRET` | Recommended | JWT signing secret (defaults to dev value) |
 | `PYTHON_API_PORT` | Optional | Python API port (defaults to 8000) |
@@ -286,7 +286,7 @@ Both endpoints support `?scope=vendor` (live vendor sales) or `?scope=marketplac
 ---
 ## AI Shopping Assistant
 
-ShopSense's Retrieval-Augmented Generation (RAG) assistant runs in the Python FastAPI service. It searches the authenticated vendor's live product catalog, applies hard price/category/stock filters, and can use Gemini or OpenAI to synthesize a concise answer from the retrieved records. Without an external provider, Python generates a grounded local response.
+ShopSense's Retrieval-Augmented Generation (RAG) assistant runs in the Python FastAPI service. It searches the authenticated vendor's live product catalog, applies hard price/category/stock filters, and uses OpenAI GPT-4o mini (when configured) or Gemini as a fallback to synthesize a concise answer from the retrieved records. Without an external provider, Python generates a grounded local response.
 
 ### RAG Architecture
 
@@ -329,7 +329,7 @@ User Question
     • Product cards and source citations are built separately from verified retrieved records
       │
       ▼
-[6] LLM Generation (Gemini → OpenAI → Local Fallback)
+[6] LLM Generation (OpenAI GPT → Gemini → Local Fallback)
     • Strict grounding rules: only reference retrieved products; catalog and user text are treated as untrusted data
     • Never invent prices, specs, ratings, reviews, or popularity claims
     • Spec queries (best for video editing / gaming) trigger honest limitation note
