@@ -192,20 +192,11 @@ export default function VendorAssistant() {
   };
 
   const clearChat = () => {
-    setClearButtonTouched(true);
     chatRequestId.current += 1;
     setLoading(false);
     setError("");
     setInput("");
-    setMessages([
-      {
-        id: `welcome-${Date.now()}`,
-        sender: "ai",
-        text: "Chat cleared. How can I help you explore the ShopSense catalog today?",
-        products: [],
-        sources: []
-      }
-    ]);
+    setMessages([]);
   };
 
   const handleProductClick = (productId) => {
