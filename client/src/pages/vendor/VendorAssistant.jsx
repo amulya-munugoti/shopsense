@@ -77,7 +77,6 @@ export default function VendorAssistant() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
-  const [clearButtonTouched, setClearButtonTouched] = useState(false);
   const chatBottomRef = useRef(null);
   const chatRequestId = useRef(0);
 
@@ -120,7 +119,6 @@ export default function VendorAssistant() {
   const handleSend = async (questionText = input) => {
     const q = String(questionText || "").trim();
     if (!q || loading) return;
-    setClearButtonTouched(false);
     const requestId = ++chatRequestId.current;
 
     setInput("");
@@ -540,10 +538,7 @@ export default function VendorAssistant() {
             <input
               type="text"
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                setClearButtonTouched(false);
-              }}
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about products, prices, stock, categories…"
               disabled={loading}
@@ -567,11 +562,10 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              onPointerDown={() => setClearButtonTouched(true)}
-              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors"
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors active:bg-gray-100"
               style={{
-                borderColor: clearButtonTouched ? "#b8d6be" : "var(--border)",
-                background: clearButtonTouched ? "#e8f2e9" : "var(--card)",
+                borderColor: "var(--border)",
+                background: "var(--card)",
                 color: "var(--ink)"
               }}
               title="Clear chat history"
