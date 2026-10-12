@@ -77,6 +77,7 @@ export default function VendorAssistant() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
+  const [clearButtonPressed, setClearButtonPressed] = useState(false);
   const chatBottomRef = useRef(null);
   const chatRequestId = useRef(0);
 
@@ -562,10 +563,14 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors active:bg-gray-100"
+              onPointerDown={() => setClearButtonPressed(true)}
+              onPointerUp={() => setClearButtonPressed(false)}
+              onPointerLeave={() => setClearButtonPressed(false)}
+              onPointerCancel={() => setClearButtonPressed(false)}
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors"
               style={{
                 borderColor: "var(--border)",
-                background: "var(--card)",
+                background: clearButtonPressed ? "#e8f2e9" : "var(--card)",
                 color: "var(--ink)"
               }}
               title="Clear chat history"
