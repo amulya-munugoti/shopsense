@@ -80,9 +80,6 @@ export default function VendorAssistant() {
   const [clearButtonTouched, setClearButtonTouched] = useState(false);
   const chatBottomRef = useRef(null);
   const chatRequestId = useRef(0);
-  const clearButtonTimeout = useRef(null);
-
-  useEffect(() => () => clearTimeout(clearButtonTimeout.current), []);
 
   useEffect(() => {
     api.get("/ai/status")
@@ -123,6 +120,7 @@ export default function VendorAssistant() {
   const handleSend = async (questionText = input) => {
     const q = String(questionText || "").trim();
     if (!q || loading) return;
+    setClearButtonTouched(false);
     const requestId = ++chatRequestId.current;
 
     setInput("");
@@ -195,9 +193,7 @@ export default function VendorAssistant() {
   };
 
   const clearChat = () => {
-    clearTimeout(clearButtonTimeout.current);
     setClearButtonTouched(true);
-    clearButtonTimeout.current = setTimeout(() => setClearButtonTouched(false), 800);
     chatRequestId.current += 1;
     setLoading(false);
     setError("");
@@ -544,7 +540,10 @@ export default function VendorAssistant() {
             <input
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                setClearButtonTouched(false);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Ask about products, prices, stock, categories…"
               disabled={loading}
@@ -570,7 +569,7 @@ export default function VendorAssistant() {
               onClick={clearChat}
               className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors"
               style={{
-                borderColor: "var(--border)",
+                borderColor: clearButtonTouched ? "#b8d6be" : "var(--border)",
                 background: clearButtonTouched ? "#e8f2e9" : "var(--card)",
                 color: "var(--ink)"
               }}
