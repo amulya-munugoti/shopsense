@@ -332,7 +332,7 @@ export default function VendorAssistant() {
                 className={`rounded-2xl px-4 py-3.5 sm:px-6 sm:py-4 break-words ${
                   msg.sender === "user"
                     ? "w-fit max-w-[88%] rounded-br-md text-[15px] sm:text-base font-medium leading-relaxed text-white shadow-md shadow-emerald-950/10"
-                    : "w-full max-w-full border rounded-tl-none shadow-sm sm:max-w-3xl"
+                    : "w-full max-w-full border rounded-tl-none shadow-sm"
                 } ${msg.isError ? "border-red-200 bg-red-50 dark:bg-red-950/20" : ""}`}
                 style={{
                   background: msg.isError
