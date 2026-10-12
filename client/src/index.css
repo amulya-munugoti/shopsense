@@ -60,27 +60,13 @@ h1, h2, h3, .font-display {
 }
 
 .assistant-page {
-  width: calc(100% + 2rem);
-  margin-left: -1rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .assistant-chat-panel {
-  height: min(820px, max(420px, calc(100dvh - 350px)));
-  min-height: 420px;
-}
-
-@media (min-width: 640px) {
-  .assistant-page {
-    width: calc(100% + 3rem);
-    margin-left: -1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .assistant-page {
-    width: calc(100% + 4rem);
-    margin-left: -2rem;
-  }
+  height: clamp(360px, calc(100dvh - 340px), 680px);
+  min-height: 360px;
 }
 
 @media (max-height: 700px) {
@@ -90,8 +76,8 @@ h1, h2, h3, .font-display {
   }
 
   .assistant-chat-panel {
-    height: max(200px, calc(100dvh - 420px));
-    min-height: 200px;
+    height: max(260px, calc(100dvh - 340px));
+    min-height: 260px;
   }
 }
 

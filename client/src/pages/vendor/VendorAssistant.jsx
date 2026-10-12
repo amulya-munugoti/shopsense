@@ -78,7 +78,7 @@ export default function VendorAssistant() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [clearButtonPressed, setClearButtonPressed] = useState(false);
-  const chatBottomRef = useRef(null);
+  const messagesPaneRef = useRef(null);
   const chatRequestId = useRef(0);
 
   useEffect(() => {
@@ -99,7 +99,8 @@ export default function VendorAssistant() {
   }, []);
 
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const pane = messagesPaneRef.current;
+    if (pane) pane.scrollTo({ top: pane.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
   // Build lightweight conversation history from last 4 AI turns (for follow-up context)
@@ -306,7 +307,7 @@ export default function VendorAssistant() {
         style={{ background: "var(--card)", borderColor: "var(--border)" }}
       >
         {/* Messages */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6 space-y-5 sm:space-y-6">
+        <div ref={messagesPaneRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6 space-y-5 sm:space-y-6">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -524,7 +525,6 @@ export default function VendorAssistant() {
             </div>
           )}
 
-          <div ref={chatBottomRef} />
         </div>
 
         {/* Input */}
