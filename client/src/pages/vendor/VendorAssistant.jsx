@@ -4,12 +4,12 @@ import {
   Bot,
   Send,
   Sparkles,
+  RefreshCw,
   Package,
   CheckCircle2,
   HelpCircle,
   TrendingUp,
-  AlertCircle,
-  Trash2
+  AlertCircle
 } from "lucide-react";
 import api from "../../lib/api";
 
@@ -561,12 +561,12 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold text-white transition-all hover:brightness-95 active:scale-[0.98]"
-              style={{ borderColor: "var(--danger)", background: "var(--danger)", color: "#fff" }}
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-all hover:bg-gray-50 focus:bg-gray-50 active:bg-gray-100"
+              style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--ink)" }}
               title="Clear chat history"
               aria-label="Clear chat history"
             >
-              <Trash2 size={15} />
+              <RefreshCw size={15} />
               <span>Clear</span>
             </button>
           </form>
