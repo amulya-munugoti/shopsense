@@ -7,11 +7,11 @@ ShopSense is a vendor catalog and inventory application with an admin area and a
 - **Vendor accounts:** registration, sign-in, profile editing, and admin approval before a new vendor can sign in.
 - **Product catalog:** add, edit, and delete products; update stock; upload product images; and search catalog entries.
 - **Product content tools:** generate a product description and SEO fields from the product name, category, and any details supplied by the vendor. OpenAI or Gemini credentials are optional; without a working provider, the API returns a grounded local fallback.
-- **Vendor dashboard and insights:** catalog and sales summaries, inventory alerts, customer and product reports, demand forecasts, marketplace comparisons, related-product insights, and CSV exports.
-- **AI shopping assistant:** answer questions using the signed-in vendor's current catalog. External AI providers are optional; local responses cover supported catalog filters and clearly identify information the catalog does not contain.
-- **Admin area:** review vendors and approve, suspend, reactivate, or delete accounts.
+- **Vendor dashboard and insights:** catalog and sales summaries, inventory health, customer and product reports, demand projections, vendor-to-marketplace benchmarks, cross-sell recommendations, and CSV exports.
+- **AI Business Assistant:** ask questions about the signed-in vendor's current catalog, including product, price, category, and stock questions. External AI providers are optional; local responses cover supported catalog filters and identify information the catalog does not contain.
+- **Admin area:** review vendors and approve, suspend, reset status, or remove accounts.
 
-Marketplace analytics use the workbooks in `dataset/`, imported into SQLite when the API initializes. Vendor product and sales records are stored separately from the marketplace dataset.
+Marketplace analytics use the workbooks in `dataset/`. The API imports them into SQLite during startup when the historical analytics tables are empty. Vendor product and sales records are kept in separate tables from the marketplace dataset.
 
 ## Technology
 
@@ -28,7 +28,7 @@ Requirements: Node.js and Python 3.
 
    ```powershell
    py -3 -m venv .venv
-   .\.venv\Scripts\python.exe -m pip install -r analytics_api\requirements.txt
+   .\.venv\Scripts\python.exe -m pip install -r analytics_api\requirements-dev.txt
    npm install --prefix client
    ```
 
