@@ -2,14 +2,10 @@ services:
   - type: web
     name: shopsense-api
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /health
-    disk:
-      name: shopsense-data
-      mountPath: /app/server
-      sizeGB: 1
     envVars:
       - key: APP_ENV
         value: production
