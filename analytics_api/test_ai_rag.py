@@ -213,7 +213,7 @@ class RetrievalTests(unittest.TestCase):
 
     def test_missing_specific_product_gets_direct_catalog_lookup_answer(self):
         self.db.executemany(
-            "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO products (id, vendor_id, name, description, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (6, 1, "Daily Glow Skincare Set", "Skincare.", "Beauty", 1499, 2, ""),
                 (7, 1, "Soft Makeup Brush Set", "Brush set.", "Beauty", 899, 16, ""),
@@ -232,7 +232,7 @@ class RetrievalTests(unittest.TestCase):
 
     def test_ungrammatical_does_available_lookup_bypasses_provider(self):
         self.db.executemany(
-            "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO products (id, vendor_id, name, description, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (6, 1, "Daily Glow Skincare Set", "Skincare.", "Beauty", 1499, 2, ""),
                 (7, 1, "Soft Makeup Brush Set", "Brush set.", "Beauty", 899, 16, ""),
@@ -250,7 +250,7 @@ class RetrievalTests(unittest.TestCase):
 
     def test_product_lookup_finds_a_listed_product_by_name(self):
         self.db.execute(
-            "INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO products (id, vendor_id, name, description, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (6, 1, "Velvet Lipstick", "Long-wear lipstick.", "Beauty", 599, 7, ""),
         )
         question = "Do you have lipstick in the catalog?"
