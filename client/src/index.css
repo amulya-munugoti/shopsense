@@ -59,6 +59,23 @@ h1, h2, h3, .font-display {
   display: none;
 }
 
+.assistant-chat-panel {
+  height: min(760px, max(420px, calc(100dvh - 320px)));
+  min-height: 420px;
+}
+
+@media (max-height: 700px) {
+  .assistant-page {
+    row-gap: 0.75rem;
+    padding-bottom: 1rem;
+  }
+
+  .assistant-chat-panel {
+    height: max(200px, calc(100dvh - 420px));
+    min-height: 200px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

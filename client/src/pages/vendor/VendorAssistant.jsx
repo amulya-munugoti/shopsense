@@ -210,11 +210,11 @@ export default function VendorAssistant() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 pb-12">
+    <div className="assistant-page mx-auto w-full max-w-6xl space-y-5 pb-12">
 
       {/* Header Banner */}
       <header
-        className="rounded-2xl p-6 relative overflow-hidden text-white shadow-sm"
+        className="rounded-2xl p-4 sm:p-6 relative overflow-hidden text-white shadow-sm"
         style={{ background: "linear-gradient(135deg, #0E4B44 0%, #15665c 100%)" }}
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -302,20 +302,15 @@ export default function VendorAssistant() {
 
       {/* Chat Container */}
       <div
-        className="rounded-2xl border shadow-sm flex flex-col"
-        style={{
-          background: "var(--card)",
-          borderColor: "var(--border)",
-          height: "min(760px, max(420px, calc(100dvh - 320px)))",
-          minHeight: "420px"
-        }}
+        className="assistant-chat-panel rounded-2xl border shadow-sm flex flex-col"
+        style={{ background: "var(--card)", borderColor: "var(--border)" }}
       >
         {/* Messages */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6 space-y-5 sm:space-y-6">
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
+              className={`flex w-full flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
             >
               {/* Avatar + label */}
               <div className="flex items-center gap-2 mb-1.5 text-xs font-medium" style={{ color: "var(--ink-soft)" }}>
@@ -333,10 +328,10 @@ export default function VendorAssistant() {
 
               {/* Bubble */}
               <div
-                className={`rounded-2xl px-4 py-3.5 sm:px-5 max-w-3xl ${
+                className={`w-full rounded-2xl px-3 py-3 sm:px-5 sm:py-3.5 ${
                   msg.sender === "user"
-                    ? "rounded-br-none shadow-sm text-white"
-                    : "border rounded-tl-none shadow-sm"
+                    ? "max-w-[92%] rounded-br-none shadow-sm text-white"
+                    : "max-w-full border rounded-tl-none shadow-sm sm:max-w-3xl"
                 } ${msg.isError ? "border-red-200 bg-red-50 dark:bg-red-950/20" : ""}`}
                 style={{
                   background: msg.isError
@@ -351,7 +346,7 @@ export default function VendorAssistant() {
               >
                 <MessageText text={msg.text} />
                 {msg.provider && (
-                  <p className="mt-2 text-[10px] font-medium" style={{ color: "var(--ink-soft)" }}>
+                  <p className="mt-2 text-xs font-medium" style={{ color: "var(--ink-soft)" }}>
                     Answer engine: {msg.provider}
                   </p>
                 )}
@@ -359,10 +354,10 @@ export default function VendorAssistant() {
                 {/* Product Cards */}
                 {msg.products && msg.products.length > 0 && (
                   <div className="mt-4 space-y-3 border-t pt-4" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
-                    <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--primary)" }}>
+                    <p className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--primary)" }}>
                       <Package size={13} /> Products ({msg.products.length})
                     </p>
-                    <div className="grid gap-2.5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                       {msg.products.map((p, idx) => {
                         // Determine if this is a live catalog product (numeric ID) or dataset product (string like P001)
                         const isLiveCatalog = p.origin === "live_catalog" || /^\d+$/.test(String(p.id));
@@ -377,7 +372,7 @@ export default function VendorAssistant() {
                                 handleProductClick(p.id);
                               }
                             }}
-                            className={`rounded-xl p-3 border bg-white dark:bg-black/20 flex gap-3 transition-all ${
+                            className={`rounded-xl p-3 sm:p-4 border bg-white dark:bg-black/20 flex gap-3 sm:gap-4 transition-all ${
                               isClickable 
                                 ? "hover:border-emerald-700 hover:shadow-sm cursor-pointer" 
                                 : "border-gray-300 opacity-60"
@@ -389,7 +384,7 @@ export default function VendorAssistant() {
                               <img
                                 src={p.imageUrl || "/placeholder.png"}
                                 alt={p.name}
-                                className="w-20 h-20 object-cover rounded-lg border"
+                                className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 object-cover rounded-lg border"
                                 style={{ borderColor: "var(--border)" }}
                                 onError={(e) => {
                                   e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
@@ -402,25 +397,25 @@ export default function VendorAssistant() {
                               {/* Live Catalog Badge */}
                               {isLiveCatalog && (
                                 <div className="mb-2">
-                                  <span className="text-[10px] px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 font-semibold">
+                                  <span className="text-[11px] px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 font-semibold">
                                     Your Catalog
                                   </span>
                                 </div>
                               )}
 
                               {/* Name + category */}
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <span className="font-semibold text-xs leading-snug" style={{ color: "var(--ink)" }}>
+                              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                                <span className="font-semibold text-sm leading-snug" style={{ color: "var(--ink)" }}>
                                   {p.name}
                                 </span>
-                                <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 whitespace-nowrap">
+                                <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 whitespace-nowrap">
                                   {p.category}
                                 </span>
                               </div>
 
                               {/* Description */}
                               {p.description && (
-                                <p className="text-[11px] text-[var(--ink-soft)] line-clamp-2 mb-2.5">
+                                <p className="text-sm text-[var(--ink-soft)] leading-relaxed line-clamp-3 mb-2.5">
                                   {p.description}
                                 </p>
                               )}
@@ -428,29 +423,29 @@ export default function VendorAssistant() {
                               {/* Vendor badge for dataset products */}
                               {!isLiveCatalog && p.vendor && (
                                 <div className="mb-2">
-                                  <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                  <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                     {p.vendor}
                                   </span>
                                 </div>
                               )}
 
                               {/* Price / Stock / Popularity row */}
-                              <div className="mt-auto pt-2 border-t border-black/5 grid grid-cols-3 gap-1.5 text-[11px] mb-2">
+                              <div className="mt-auto pt-2 border-t border-black/5 grid grid-cols-3 gap-2 text-xs mb-2">
                                 <div>
-                                  <span className="text-[9px] uppercase font-bold text-[var(--ink-soft)] block mb-0.5">Price</span>
+                                  <span className="text-[10px] uppercase font-bold text-[var(--ink-soft)] block mb-0.5">Price</span>
                                   <span className="font-mono font-bold text-emerald-800 dark:text-emerald-400">
                                     {formatINR(p.price)}
                                   </span>
                                 </div>
                                 <div>
-                                  <span className="text-[9px] uppercase font-bold text-[var(--ink-soft)] block mb-0.5">Stock</span>
+                                  <span className="text-[10px] uppercase font-bold text-[var(--ink-soft)] block mb-0.5">Stock</span>
                                   <span className={`font-semibold ${p.stock > 0 ? "text-emerald-700" : "text-rose-600"}`}>
                                   {p.stock > 0 ? `${p.stock}` : "Out of stock"}
                                 </span>
                               </div>
                               {p.unitsSold > 0 && (
                                 <div>
-                                  <span className="text-[9px] uppercase font-bold text-[var(--ink-soft)] block mb-0.5 flex items-center gap-0.5">
+                                  <span className="text-[10px] uppercase font-bold text-[var(--ink-soft)] block mb-0.5 flex items-center gap-0.5">
                                     <TrendingUp size={9} /> Sold
                                   </span>
                                   <span className="font-semibold text-amber-700">
