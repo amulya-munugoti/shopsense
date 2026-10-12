@@ -406,7 +406,9 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result["provider"], "OpenAI")
         self.assertIn("6 mm thickness; non-slip textured surface.", captured["user_prompt"])
-        self.assertIn("Do not infer or invent", captured["system_prompt"])
+        self.assertIn("Write polished, specific product-page copy", captured["system_prompt"])
+        self.assertIn("explain a benefit only when it directly follows", captured["system_prompt"])
+        self.assertIn("Do not invent or assume", captured["system_prompt"])
         self.assertNotIn("designed for everyday use", result["description"])
 
     async def test_local_description_does_not_invent_product_purpose_or_features(self):

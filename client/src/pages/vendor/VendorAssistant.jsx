@@ -265,20 +265,20 @@ export default function VendorAssistant() {
 
       {/* Suggested Questions */}
       <div
-        className="flex flex-col gap-2.5 p-4 rounded-2xl border"
+        className="flex flex-col gap-2 px-3 py-2.5 rounded-xl border sm:flex-row sm:items-center"
         style={{ background: "var(--card)", borderColor: "var(--border)" }}
       >
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>
-          <HelpCircle size={13} className="text-emerald-700" /> Try asking:
+        <div className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>
+          <HelpCircle size={13} className="text-emerald-700" /> Try asking
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 gap-2 overflow-x-auto pb-0.5">
           {SUGGESTED_QUESTIONS.map((prompt) => (
             <button
               key={prompt}
               type="button"
               disabled={loading}
               onClick={() => handleSend(prompt)}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-left transition-all border hover:border-emerald-700/50 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 disabled:opacity-50"
+              className="shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:border-emerald-700/50 hover:bg-emerald-50/60 disabled:opacity-50"
               style={{
                 background: "var(--surface)",
                 borderColor: "var(--border)",
@@ -315,8 +315,8 @@ export default function VendorAssistant() {
         style={{
           background: "var(--card)",
           borderColor: "var(--border)",
-          height: "min(680px, max(360px, calc(100dvh - 400px)))",
-          minHeight: "360px"
+          height: "min(760px, max(420px, calc(100dvh - 320px)))",
+          minHeight: "420px"
         }}
       >
         {/* Messages */}
