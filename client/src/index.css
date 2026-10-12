@@ -51,6 +51,14 @@ h1, h2, h3, .font-display {
   outline-offset: 2px;
 }
 
+.assistant-suggestions-scroll {
+  scrollbar-width: none;
+}
+
+.assistant-suggestions-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

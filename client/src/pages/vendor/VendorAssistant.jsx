@@ -271,7 +271,7 @@ export default function VendorAssistant() {
         <div className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>
           <HelpCircle size={13} className="text-emerald-700" /> Try asking
         </div>
-        <div className="flex min-w-0 gap-2 overflow-x-auto pb-0.5">
+        <div className="assistant-suggestions-scroll flex min-w-0 gap-2 overflow-x-auto pb-0.5">
           {SUGGESTED_QUESTIONS.map((prompt) => (
             <button
               key={prompt}

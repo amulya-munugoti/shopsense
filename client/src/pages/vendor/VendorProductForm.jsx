@@ -409,7 +409,7 @@ export default function VendorProductForm() {
                   style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
                 />
                 <span className="mt-1 block font-normal normal-case">
-                  AI uses these details to write specific copy. Include only facts you have verified.
+                  AI uses these details to write specific copy. Include only verified facts. At least one detail is required to enable AI description generation.
                 </span>
               </label>
               <p className="mt-1 text-xs" style={{ color: "var(--ink-soft)" }}>
