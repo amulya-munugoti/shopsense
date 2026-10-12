@@ -286,7 +286,7 @@ Both endpoints support `?scope=vendor` (live vendor sales) or `?scope=marketplac
 ---
 ## AI Shopping Assistant
 
-ShopSense's Retrieval-Augmented Generation (RAG) assistant runs in the Python FastAPI service. It searches the authenticated vendor's live product catalog, applies hard price/category/stock filters, and uses OpenAI GPT-4o mini (when configured) or Gemini as a fallback to synthesize a concise answer from the retrieved records. Without an external provider, Python generates a grounded local response.
+ShopSense's Retrieval-Augmented Generation (RAG) assistant runs in the Python FastAPI service and reads the signed-in vendor's live SQLite catalog for every question. It applies hard price/category/stock filters and uses OpenAI GPT-4o mini (when configured) or Gemini as a fallback for conversational answers. Vendor-specific claims are grounded in current catalog records; unrelated general questions can be answered conversationally. Without a working external provider, Python handles supported catalog questions locally.
 
 ### RAG Architecture
 
@@ -324,14 +324,15 @@ User Question
       │
       ▼
 [5] Context Construction
-    • Up to 6 vendor products supplied to the Python answer generator
-    • Context includes retrieved product fields and vendor sales history when available
+    • Up to 200 live vendor products supplied to the LLM, including stored descriptions and verified vendor hints
+    • Retrieved products and relevant vendor sales fields are used for answer citations and product cards
+    • Incomplete catalogs are identified so the LLM does not claim whole-catalog totals
     • Product cards and source citations are built separately from verified retrieved records
       │
       ▼
 [6] LLM Generation (OpenAI GPT → Gemini → Local Fallback)
-    • Strict grounding rules: only reference retrieved products; catalog and user text are treated as untrusted data
-    • Never invent prices, specs, ratings, reviews, or popularity claims
+    • General questions are answered conversationally; claims about the vendor are grounded in catalog data
+    • Never invent prices, stock, verified product specifications, sales, or popularity claims
     • Spec queries (best for video editing / gaming) trigger honest limitation note
     • Local grounded response fallback works without an external provider
       │
