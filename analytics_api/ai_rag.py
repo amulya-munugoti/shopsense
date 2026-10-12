@@ -779,7 +779,8 @@ async def generate_product_description(name: str, category: str, hints: str = ""
     fallback = _local_description(name, category, hints)
     prompt_data = {"name": name, "category": category, "verifiedVendorDetails": hints}
     generated, provider = await _generate_text(
-        "Write polished, specific product-page copy in 2–3 natural sentences. Use the product name, "
+        "Write polished, specific product-page copy in 4–5 natural sentences (about 60–90 words) "
+        "when verified vendor details are provided. Use the product name, "
         "category, and verified vendor details as the complete source of product facts. Make the copy "
         "clear and appealing by organizing and rephrasing those facts; explain a benefit only when it "
         "directly follows from a stated feature. Do not invent or assume intended use, audience, features, "

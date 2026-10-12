@@ -66,7 +66,6 @@ export default function VendorProductForm() {
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [generatingSeo, setGeneratingSeo] = useState(false);
   const [descriptionError, setDescriptionError] = useState("");
-  const [descriptionProvider, setDescriptionProvider] = useState("");
   const [seoError, setSeoError] = useState("");
   const [seoProvider, setSeoProvider] = useState("");
   const blurTimeout = useRef(null);
@@ -117,10 +116,6 @@ export default function VendorProductForm() {
       setDescriptionError("Enter a product name and category first.");
       return;
     }
-    if (!form.vendorHints.trim()) {
-      setDescriptionError("Add verified product details first so AI can write a specific, accurate description.");
-      return;
-    }
     setDescriptionError("");
     setGeneratingDescription(true);
     try {
@@ -130,7 +125,6 @@ export default function VendorProductForm() {
         hints: form.vendorHints
       });
       setForm((prev) => ({ ...prev, description: res.data.description || "" }));
-      setDescriptionProvider(res.data.provider || "Local (grounded)");
     } catch (err) {
       const apiError = err.response?.data?.error || err.response?.data?.detail;
       setDescriptionError(
@@ -355,11 +349,11 @@ export default function VendorProductForm() {
                   ))}
                 </select>
               )}
-              <p className="mt-2 text-xs" style={{ color: "var(--ink-soft)" }}>
-                {form.category === "Other" || (form.category && !CATEGORIES.includes(form.category))
-                  ? "Enter a custom category name that best describes your product"
-                  : "Select 'Other' to enter a custom category"}
-              </p>
+              {(form.category === "Other" || (form.category && !CATEGORIES.includes(form.category))) && (
+                <p className="mt-2 text-xs" style={{ color: "var(--ink-soft)" }}>
+                  Enter a custom category name that best describes your product.
+                </p>
+              )}
             </div>
 
             {/* Product description */}
@@ -371,14 +365,12 @@ export default function VendorProductForm() {
                 <button
                   type="button"
                   onClick={handleGenerateDescription}
-                  disabled={generatingDescription || !form.name.trim() || !form.category.trim() || !form.vendorHints.trim()}
+                  disabled={generatingDescription || !form.name.trim() || !form.category.trim()}
                   className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
                   style={{ background: "var(--primary)", color: "white" }}
                   title={!form.name.trim() || !form.category.trim()
                     ? "Enter product name and category first"
-                    : !form.vendorHints.trim()
-                      ? "Add verified product details first"
-                      : "Generate an editable AI description"}
+                    : "Generate an editable description from the product name, category, and any verified details"}
                 >
                   {generatingDescription ? (
                     <>
@@ -402,27 +394,23 @@ export default function VendorProductForm() {
                 className="w-full px-4 py-3 rounded-lg text-sm focus-ring resize-none"
                 style={{ border: "1px solid var(--border)" }}
               />
-              <label className="mt-4 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>
-                Verified product details
+              <details className="mt-3">
+                <summary className="w-fit cursor-pointer text-xs font-semibold text-emerald-800 hover:text-emerald-900">
+                  Add product facts for a richer description <span className="font-normal text-[var(--ink-soft)]">(optional)</span>
+                </summary>
                 <textarea
+                  aria-label="Verified product details"
                   rows={3}
                   value={form.vendorHints}
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, vendorHints: e.target.value }));
                     setDescriptionError("");
                   }}
-                  placeholder="Add accurate features and specifications, such as material, dimensions, capacity, included items, or compatibility."
-                  className="mt-2 w-full px-4 py-3 rounded-lg text-sm font-normal normal-case focus-ring resize-y"
+                  placeholder="Material, size, color, included items…"
+                  className="mt-2 w-full px-4 py-3 rounded-lg text-sm focus-ring resize-y"
                   style={{ border: "1px solid var(--border)", color: "var(--ink)" }}
                 />
-                <span className="mt-1 block font-normal normal-case">
-                  AI uses these details to write specific copy. Include only verified facts. At least one detail is required to enable AI description generation.
-                </span>
-              </label>
-              <p className="mt-1 text-xs" style={{ color: "var(--ink-soft)" }}>
-                The description is editable and generated from your product name, category, and verified details.
-                {descriptionProvider && ` Generated with ${descriptionProvider}.`}
-              </p>
+              </details>
               {descriptionError && (
                 <p className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: "var(--danger)" }}>
                   <AlertCircle size={12} />
