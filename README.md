@@ -11,7 +11,7 @@ ShopSense is a vendor catalog and inventory application with an admin area and a
 - **AI Business Assistant:** ask questions about the signed-in vendor's current catalog, including product, price, category, and stock questions. External AI providers are optional; local responses cover supported catalog filters and identify information the catalog does not contain.
 - **Admin area:** review vendors and approve, suspend, reset status, or remove accounts.
 
-Marketplace analytics use the workbooks in `dataset/`. The API imports them into SQLite during startup when the historical analytics tables are empty. Vendor product and sales records are kept in separate tables from the marketplace dataset.
+Marketplace analytics use the workbooks in `dataset/`. On startup, the API imports them into SQLite if the `analytics_orders` table is empty and all four workbooks are present. Vendor product and sales records are kept in separate tables from the marketplace dataset.
 
 ## Technology
 
@@ -40,7 +40,7 @@ Requirements: Node.js and Python 3.
    Copy-Item .env.example .env
    ```
 
-   Set `APP_ENV=development` and a private `JWT_SECRET` of at least 32 bytes. To create the first admin, set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, and `BOOTSTRAP_ADMIN_PASSWORD` (12–72 bytes). The bootstrap password is used once to create that account.
+   Set `APP_ENV=development` and a private `JWT_SECRET` of at least 32 bytes. To create the first admin, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` (12–72 bytes). `BOOTSTRAP_ADMIN_NAME` is optional. The bootstrap password is used to create that account once.
 
 3. Start both the API and frontend:
 
