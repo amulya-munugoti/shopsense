@@ -567,6 +567,7 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
+              onPointerDown={() => setClearButtonTouched(true)}
               className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors"
               style={{
                 borderColor: clearButtonTouched ? "#b8d6be" : "var(--border)",
