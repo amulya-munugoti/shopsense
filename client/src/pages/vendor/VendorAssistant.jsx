@@ -4,12 +4,12 @@ import {
   Bot,
   Send,
   Sparkles,
-  RefreshCw,
   Package,
   CheckCircle2,
   HelpCircle,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 import api from "../../lib/api";
 
@@ -78,6 +78,7 @@ export default function VendorAssistant() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const chatBottomRef = useRef(null);
+  const chatRequestId = useRef(0);
 
   useEffect(() => {
     api.get("/ai/status")
@@ -118,6 +119,7 @@ export default function VendorAssistant() {
   const handleSend = async (questionText = input) => {
     const q = String(questionText || "").trim();
     if (!q || loading) return;
+    const requestId = ++chatRequestId.current;
 
     setInput("");
     setError("");
@@ -143,6 +145,7 @@ export default function VendorAssistant() {
         question: q,
         conversationHistory: history
       });
+      if (requestId !== chatRequestId.current) return;
 
       const aiMessage = {
         id: `ai-${Date.now()}`,
@@ -154,6 +157,7 @@ export default function VendorAssistant() {
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (err) {
+      if (requestId !== chatRequestId.current) return;
       console.error("AI Assistant error:", err);
       const errMsg =
         err.response?.data?.error ||
@@ -175,7 +179,7 @@ export default function VendorAssistant() {
         }
       ]);
     } finally {
-      setLoading(false);
+      if (requestId === chatRequestId.current) setLoading(false);
     }
   };
 
@@ -187,6 +191,8 @@ export default function VendorAssistant() {
   };
 
   const clearChat = () => {
+    chatRequestId.current += 1;
+    setLoading(false);
     setError("");
     setInput("");
     setMessages([
@@ -555,13 +561,12 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              disabled={loading}
-              className="inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-3 text-sm font-semibold border transition-all hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40"
-              style={{ borderColor: "var(--border)", color: "var(--ink)" }}
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold text-white transition-all hover:brightness-95 active:scale-[0.98]"
+              style={{ borderColor: "var(--danger)", background: "var(--danger)", color: "#fff" }}
               title="Clear chat history"
               aria-label="Clear chat history"
             >
-              <RefreshCw size={15} />
+              <Trash2 size={15} />
               <span>Clear</span>
             </button>
           </form>
