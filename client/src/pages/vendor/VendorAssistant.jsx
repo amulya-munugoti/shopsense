@@ -77,9 +77,12 @@ export default function VendorAssistant() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
-  const [clearButtonFocused, setClearButtonFocused] = useState(false);
+  const [clearButtonTouched, setClearButtonTouched] = useState(false);
   const chatBottomRef = useRef(null);
   const chatRequestId = useRef(0);
+  const clearButtonTimeout = useRef(null);
+
+  useEffect(() => () => clearTimeout(clearButtonTimeout.current), []);
 
   useEffect(() => {
     api.get("/ai/status")
@@ -192,6 +195,9 @@ export default function VendorAssistant() {
   };
 
   const clearChat = () => {
+    clearTimeout(clearButtonTimeout.current);
+    setClearButtonTouched(true);
+    clearButtonTimeout.current = setTimeout(() => setClearButtonTouched(false), 800);
     chatRequestId.current += 1;
     setLoading(false);
     setError("");
@@ -562,12 +568,10 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors hover:bg-gray-50"
-              onFocus={() => setClearButtonFocused(true)}
-              onBlur={() => setClearButtonFocused(false)}
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors"
               style={{
                 borderColor: "var(--border)",
-                background: clearButtonFocused ? "#edf3ee" : "var(--card)",
+                background: clearButtonTouched ? "#e8f2e9" : "var(--card)",
                 color: "var(--ink)"
               }}
               title="Clear chat history"
