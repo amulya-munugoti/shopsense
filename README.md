@@ -26,6 +26,7 @@ ShopSense is a vendor catalog and inventory management application with marketpl
 shopsense/
 ├── client/                       React and Vite frontend
 │   ├── public/                    Static public assets
+│   ├── vite.config.js             Vite plugins and local API proxy
 │   └── src/
 │       ├── App.jsx                Application routes and protected areas
 │       ├── components/            Shared layout, dialogs, status and image components
@@ -43,11 +44,12 @@ shopsense/
 │   ├── ai_rag.py                  Catalog retrieval and product content generation
 │   ├── database.py                SQLite schema, migrations and workbook import
 │   └── requirements*.txt          Python dependencies
-├── dataset/                       Historical analytics workbooks
-├── scripts/                       Local API, combined app and test launchers
-├── server/                        Runtime database and uploaded images
-├── .env.example                   Environment variable template
+├── dataset/                       products, customers, orders and order items workbooks
+├── scripts/                       API, combined app and test launchers
+├── server/                        Runtime SQLite database and uploaded images
+├── Dockerfile                     API container image
 ├── docker-compose.yml             API container configuration
+├── .env.example                   Environment variable template
 └── package.json                   Root API, local-app and test commands
 ```
 
@@ -64,6 +66,17 @@ shopsense/
 | Workbook import | `openpyxl` |
 | Optional text generation | OpenAI API and Google Gemini API via HTTP requests |
 
+## Request and data flow
+
+```mermaid
+flowchart LR
+    Browser[React frontend] -->|Axios requests| Vite[Vite dev proxy]
+    Vite -->|/api and /uploads| API[FastAPI]
+    API --> DB[(SQLite)]
+    Workbooks[dataset XLSX files] -->|initial analytics import| DB
+    API -->|optional text generation| Provider[OpenAI or Gemini]
+```
+
 ## Application architecture and data
 
 - The React app sends requests through the Axios client in `client/src/lib/api.js`.
@@ -73,6 +86,8 @@ shopsense/
 - The analytics import reads `products_1.xlsx`, `customers_1.xlsx`, `orders_1.xlsx`, and `order_items_1.xlsx` from `dataset/`. It runs during database initialization when `analytics_orders` is empty and all four files are present.
 - Vendor catalog and sales tables are separate from the historical analytics tables. The AI Business Assistant retrieves from the signed-in vendor's live catalog.
 - OpenAI and Gemini are optional. When no provider is configured or a generation request fails, the API's product content functions use a local fallback; the Assistant can answer supported catalog filters locally. Provider-generated answers require a working API key with access to the configured model.
+
+Registration does not send email verification messages. Newly registered vendors remain pending until an administrator approves them. Passwords are hashed by the API; authenticated API calls use bearer JWTs.
 
 ## Run locally
 
@@ -103,6 +118,8 @@ Copy-Item .env.example .env
 
 For local development, set `APP_ENV=development` and set a private `JWT_SECRET`. To create the first administrator, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`; the password must be 12–72 bytes. `BOOTSTRAP_ADMIN_NAME` is optional. Keep `.env` private and do not commit it.
 
+The shipped `.env.example` uses placeholder production values. Replace those values before starting the API. In production, `JWT_SECRET` must be at least 32 bytes and cannot be the development fallback.
+
 Optional local demo accounts can be seeded by setting `APP_ENV=development` plus both email and password variables for each account: `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD`, `DEMO_VENDOR_EMAIL`, and `DEMO_VENDOR_PASSWORD`.
 
 ### Start the app
@@ -131,6 +148,10 @@ Register a vendor in the app, sign in as the administrator, and approve the vend
 - Frontend lint: `npm run lint --prefix client`.
 - Python API tests: `npm test` from the repository root, or `\.venv\Scripts\python.exe -m pytest -q analytics_api` on Windows.
 
+### Docker
+
+The root `Dockerfile` and `docker-compose.yml` run the FastAPI service, not the React frontend. Copy `.env.example` to `.env`, set a private `JWT_SECRET` of at least 32 bytes and the required production values, then run `docker compose up --build`. The Compose file persists the API database and uploaded images under `server/`. Run the frontend separately with `npm run dev --prefix client` if you want the browser app alongside the API container.
+
 ## AI provider configuration
 
 Set either `OPENAI_API_KEY` or `GEMINI_API_KEY` in the root `.env` file to enable external text generation for the AI Business Assistant and product description/SEO generation. If both are configured, the API tries OpenAI first and Gemini second. Without a working provider, fallback behavior depends on the endpoint: the Assistant handles supported catalog filters locally, while product content generation returns a grounded local result.
@@ -153,6 +174,10 @@ A ChatGPT subscription does not itself provide an OpenAI API key or API access.
 | `DEMO_VENDOR_EMAIL`, `DEMO_VENDOR_PASSWORD` | Optional approved demo vendor; local development only. |
 | `OPENAI_API_KEY` | Optional OpenAI text generation provider. |
 | `GEMINI_API_KEY` | Optional Gemini text generation provider/fallback. |
+| `LLM_API_KEY` | Legacy alias used when `GEMINI_API_KEY` is not set. |
+| `HOST` | API bind host; defaults to `0.0.0.0`. |
+| `VITE_API_PROXY_TARGET` | Vite development proxy target; defaults to `http://127.0.0.1:8000`. |
+| `VITE_API_URL` | Optional frontend API base URL for a separately hosted API. Leave unset for same-origin `/api` requests through the Vite proxy in local development. |
 
 ## API overview
 
@@ -163,7 +188,7 @@ FastAPI's interactive API documentation is available at <http://127.0.0.1:8000/d
 | Authentication | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/bootstrap-admin` |
 | Vendor | `GET /api/vendor/dashboard`, `GET /api/vendor/products`, `POST /api/vendor/products`, `PUT /api/vendor/products/{id}`, `PATCH /api/vendor/products/{id}/stock`, `GET/PUT /api/vendor/profile` |
 | Admin | `GET /api/admin/dashboard`, `GET /api/admin/vendors`, `PUT /api/admin/vendors/{id}/status`, `DELETE /api/admin/vendors/{id}` |
-| Analytics | `/api/analytics/inventory`, `/customers`, `/sales`, `/forecast`, `/benchmark`, `/frequent-patterns`, `/association-rules`, `/recommendations`, `/export/sales`, `/export/products` |
-| AI | `POST /api/ai/shopping-assistant`, `POST /api/ai/generate-description`, `POST /api/ai/generate-seo-content`, `GET /api/ai/status` |
+| Analytics | `GET /api/analytics/inventory`, `GET /api/analytics/customers`, `GET /api/analytics/sales`, `GET /api/analytics/forecast`, `GET /api/analytics/benchmark`, `GET /api/analytics/frequent-patterns`, `GET /api/analytics/association-rules`, `GET /api/analytics/recommendations`, `GET /api/analytics/export/sales`, `GET /api/analytics/export/products` |
+| AI Business Assistant and product content | The AI Business Assistant screen uses `POST /api/ai/shopping-assistant`; product content uses `POST /api/ai/generate-description` and `POST /api/ai/generate-seo-content`; provider status uses `GET /api/ai/status`. |
 
 Vendor and admin API operations use bearer-token authentication and role checks. Vendor data access is scoped to the signed-in vendor; admin endpoints are restricted to administrator accounts.
