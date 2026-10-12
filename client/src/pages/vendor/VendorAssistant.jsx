@@ -489,6 +489,23 @@ export default function VendorAssistant() {
             </div>
           ))}
 
+          {!messages.length && !loading && (
+            <div className="flex h-full min-h-48 flex-col items-center justify-center text-center">
+              <span
+                className="mb-3 flex h-11 w-11 items-center justify-center rounded-full"
+                style={{ background: "var(--success-soft)", color: "var(--primary)" }}
+              >
+                <Bot size={22} />
+              </span>
+              <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+                Chat cleared
+              </p>
+              <p className="mt-1 max-w-sm text-xs" style={{ color: "var(--ink-soft)" }}>
+                Ask a question about your catalog or choose one of the suggestions above to get started.
+              </p>
+            </div>
+          )}
+
           {/* Thinking indicator */}
           {loading && (
             <div className="flex flex-col items-start">
