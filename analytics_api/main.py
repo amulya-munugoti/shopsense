@@ -270,7 +270,7 @@ async def generate_product_description(request: ProductContentRequest, _user: Cu
     return await ai_rag.generate_product_description(
         request.name.strip(),
         request.category.strip(),
-        request.hints.strip()[:300],
+        request.hints.strip(),
     )
 
 

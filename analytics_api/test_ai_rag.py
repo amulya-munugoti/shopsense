@@ -21,19 +21,21 @@ def make_catalog():
         CREATE TABLE products (
             id INTEGER PRIMARY KEY, vendor_id INTEGER NOT NULL, name TEXT NOT NULL,
             description TEXT, category TEXT NOT NULL, price REAL NOT NULL,
-            stock INTEGER NOT NULL, image_url TEXT
+            stock INTEGER NOT NULL, image_url TEXT, vendor_hints TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE sales (
             id INTEGER PRIMARY KEY, vendor_id INTEGER NOT NULL, product_id INTEGER NOT NULL,
             quantity INTEGER NOT NULL
         );
         INSERT INTO vendors VALUES (1, 'Vendor One'), (2, 'Vendor Two');
-        INSERT INTO products VALUES
-            (1, 1, 'Flex Yoga Mat', 'Comfortable mat for stretching and yoga workouts.', 'Sports', 1199, 9, ''),
-            (2, 1, 'Neoprene Dumbbell Pair', 'Dumbbells for strength workouts.', 'Sports', 1799, 0, ''),
-            (3, 1, 'Smart Fitness Band', 'Activity tracking for daily workouts.', 'Electronics', 1999, 3, ''),
-            (4, 1, 'Everyday Laptop Backpack', 'A backpack for carrying a laptop.', 'Accessories', 2199, 8, ''),
-            (5, 2, 'Yoga Starter Mat', 'Yoga mat for exercise.', 'Sports', 499, 5, '');
+        INSERT INTO products (
+            id, vendor_id, name, description, category, price, stock, image_url, vendor_hints
+        ) VALUES
+            (1, 1, 'Flex Yoga Mat', 'Comfortable mat for stretching and yoga workouts.', 'Sports', 1199, 9, '', '6 mm thickness; non-slip textured surface.'),
+            (2, 1, 'Neoprene Dumbbell Pair', 'Dumbbells for strength workouts.', 'Sports', 1799, 0, '', ''),
+            (3, 1, 'Smart Fitness Band', 'Activity tracking for daily workouts.', 'Electronics', 1999, 3, '', ''),
+            (4, 1, 'Everyday Laptop Backpack', 'A backpack for carrying a laptop.', 'Accessories', 2199, 8, '', ''),
+            (5, 2, 'Yoga Starter Mat', 'Yoga mat for exercise.', 'Sports', 499, 5, '', '');
         INSERT INTO sales VALUES (1, 1, 1, 12), (2, 1, 2, 4);
         """
     )
@@ -337,6 +339,7 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(provider, "OpenAI + Python RAG")
             prompt = requests[0][1]["json"]["messages"][1]["content"]
             self.assertIn("Flex Yoga Mat", prompt)
+            self.assertIn("6 mm thickness; non-slip textured surface.", prompt)
             self.assertIn("Everyday Laptop Backpack", prompt)
             self.assertNotIn("Yoga Starter Mat", prompt)
             self.assertIn('"complete": true', prompt)
@@ -385,6 +388,36 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(configured_provider, "OpenAI")
         finally:
             db.close()
+
+    async def test_generated_description_receives_only_verified_product_facts(self):
+        captured = {}
+
+        async def fake_generate_text(system_prompt, user_prompt, max_tokens=900, json_response=False):
+            captured["system_prompt"] = system_prompt
+            captured["user_prompt"] = user_prompt
+            return "Flex Yoga Mat has a 6 mm thickness and non-slip textured surface.", "OpenAI"
+
+        with patch("analytics_api.ai_rag._generate_text", side_effect=fake_generate_text):
+            result = await ai_rag.generate_product_description(
+                "Flex Yoga Mat",
+                "Sports",
+                "6 mm thickness; non-slip textured surface.",
+            )
+
+        self.assertEqual(result["provider"], "OpenAI")
+        self.assertIn("6 mm thickness; non-slip textured surface.", captured["user_prompt"])
+        self.assertIn("Do not infer or invent", captured["system_prompt"])
+        self.assertNotIn("designed for everyday use", result["description"])
+
+    async def test_local_description_does_not_invent_product_purpose_or_features(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENAI_API_KEY": "", "LLM_API_KEY": ""}):
+            result = await ai_rag.generate_product_description("Flex Yoga Mat", "Sports")
+
+        self.assertEqual(
+            result["description"],
+            "Flex Yoga Mat is listed in the Sports category.",
+        )
+        self.assertEqual(result["provider"], "Local (grounded)")
 
     async def test_unavailable_provider_does_not_claim_unknown_question_has_no_match(self):
         db = make_catalog()
