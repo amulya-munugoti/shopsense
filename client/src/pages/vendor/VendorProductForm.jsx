@@ -132,7 +132,14 @@ export default function VendorProductForm() {
       setForm((prev) => ({ ...prev, description: res.data.description || "" }));
       setDescriptionProvider(res.data.provider || "Local (grounded)");
     } catch (err) {
-      setDescriptionError(err.response?.data?.error || "Unable to generate a description. Please try again.");
+      const apiError = err.response?.data?.error || err.response?.data?.detail;
+      setDescriptionError(
+        typeof apiError === "string"
+          ? apiError
+          : err.message === "Network Error"
+            ? "Could not reach the AI service. Check that the ShopSense API is running and try again."
+            : "Unable to generate a description. Please try again."
+      );
     } finally {
       setGeneratingDescription(false);
     }
