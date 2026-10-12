@@ -66,6 +66,7 @@ export default function VendorProductForm() {
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [generatingSeo, setGeneratingSeo] = useState(false);
   const [descriptionError, setDescriptionError] = useState("");
+  const [descriptionProvider, setDescriptionProvider] = useState("");
   const [seoError, setSeoError] = useState("");
   const [seoProvider, setSeoProvider] = useState("");
   const blurTimeout = useRef(null);
@@ -125,6 +126,7 @@ export default function VendorProductForm() {
         hints: form.vendorHints
       });
       setForm((prev) => ({ ...prev, description: res.data.description || "" }));
+      setDescriptionProvider(res.data.provider || "Local (grounded)");
     } catch (err) {
       setDescriptionError(err.response?.data?.error || "Unable to generate a description. Please try again.");
     } finally {
@@ -386,7 +388,8 @@ export default function VendorProductForm() {
                 style={{ border: "1px solid var(--border)" }}
               />
               <p className="mt-1 text-xs" style={{ color: "var(--ink-soft)" }}>
-                The description is editable. Add verified product details under advanced SEO fields to guide generation.
+                The description is editable and uses only the product facts provided. Add verified product details under advanced SEO fields for a more specific description.
+                {descriptionProvider && ` Generated with ${descriptionProvider}.`}
               </p>
               {descriptionError && (
                 <p className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: "var(--danger)" }}>
