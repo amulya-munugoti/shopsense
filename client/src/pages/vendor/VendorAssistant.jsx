@@ -561,7 +561,7 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-all hover:bg-gray-50 focus:bg-gray-50 active:bg-gray-100"
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors hover:bg-[var(--surface)] focus:bg-[var(--surface)] active:bg-[#e8f0eb]"
               style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--ink)" }}
               title="Clear chat history"
               aria-label="Clear chat history"
