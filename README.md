@@ -1,6 +1,6 @@
 # ShopSense
 
-**Vendor catalog and inventory management with marketplace insights.** ShopSense includes separate vendor and admin workspaces, a catalog grounded **AI Business Assistant**, and reporting based on vendor records and the included marketplace workbooks.
+**A RAG-powered vendor catalog and inventory platform.** ShopSense combines vendor and admin workspaces with marketplace analytics. Its Retrieval-Augmented Generation (RAG) feature is presented in the product as the **AI Business Assistant**: it retrieves relevant records from a vendor's live catalog before answering.
 
 ## Contents
 
@@ -43,12 +43,32 @@ Bootstrap the first admin → Sign in → Review vendor accounts
 | My catalog | Search, category and stock filters, grid/list views, product details, edit and remove |
 | Add product | Product details, category, price, stock, image upload or image URL, description and optional SEO fields |
 | Insights | Sales reports, inventory health, customer and product reports, demand projections, vendor/marketplace benchmarks, cross-sell reports, dataset validation, CSV exports |
-| AI Assistant | The screen is titled **AI Business Assistant**. It answers catalog questions using the signed-in vendor's current products and inventory data. |
+| RAG / AI Business Assistant | The screen is titled **AI Business Assistant**. Its RAG pipeline retrieves relevant records from the signed-in vendor's live catalog before answering. |
 | Admin dashboard | Vendor counts and recent vendor accounts |
 | Vendor management | Filter by account status; approve, suspend, reset status, or remove vendors |
 | Profile | Edit account and business details or change the password |
 
 Product description and SEO generation use the product name, category, and optional vendor-provided facts. OpenAI and Gemini are optional providers; the API has a grounded local fallback when a provider is not available.
+
+## RAG: how the AI Business Assistant works
+
+RAG means **Retrieval-Augmented Generation**. ShopSense retrieves vendor catalog records first, then uses those records as evidence for an answer. Every vendor request is scoped to the signed-in vendor's own products.
+
+```mermaid
+flowchart LR
+    Q[Vendor question] --> C[Extract category, price, stock and ranking filters]
+    C --> R[Retrieve from that vendor's live SQLite catalog]
+    R --> F[Filter and rank matching records]
+    F --> X[Build answer context and source records]
+    X -->|Optional| L[OpenAI or Gemini generation]
+    X -->|No provider or provider unavailable| G[Grounded local response]
+    L --> A[Answer, product cards and sources]
+    G --> A
+```
+
+The retriever reads current SQLite catalog rows for each question. It applies supported category, price, and stock constraints, then ranks matches using exact/lexical matching and a small hashed token and character n-gram vector. It does not depend on an external vector database. Follow-up questions can include recent product results as context.
+
+Count, stock, and direct catalog lookup questions can be answered directly from retrieved records. Other questions can be sent to the configured text provider with vendor catalog context (up to 200 products) and relevant matches beyond that limit. If no provider is available, local handling supports catalog filters and states when the catalog does not contain enough information. Responses include matching product cards and source details when there are matches.
 
 ## Architecture
 
