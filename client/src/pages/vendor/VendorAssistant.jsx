@@ -77,6 +77,7 @@ export default function VendorAssistant() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
+  const [clearButtonFocused, setClearButtonFocused] = useState(false);
   const chatBottomRef = useRef(null);
   const chatRequestId = useRef(0);
 
@@ -561,8 +562,14 @@ export default function VendorAssistant() {
             <button
               type="button"
               onClick={clearChat}
-              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors hover:bg-gray-50 focus:bg-gray-100 active:bg-gray-100"
-              style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--ink)" }}
+              className="focus-ring inline-flex min-w-[88px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 py-3 text-sm font-semibold transition-colors hover:bg-gray-50"
+              onFocus={() => setClearButtonFocused(true)}
+              onBlur={() => setClearButtonFocused(false)}
+              style={{
+                borderColor: "var(--border)",
+                background: clearButtonFocused ? "#edf3ee" : "var(--card)",
+                color: "var(--ink)"
+              }}
               title="Clear chat history"
               aria-label="Clear chat history"
             >
