@@ -310,8 +310,9 @@ async def shopping_assistant(
         or results["constraints"]["ranking"] in {"highest_stock", "lowest_stock"}
     ):
         answer = ai_rag.format_grounded_answer(question, results)
+        provider = "Python Grounded Catalog RAG (Database)"
     else:
-        answer, _provider = await ai_rag.generate_answer(question, results)
+        answer, provider = await ai_rag.generate_answer(question, results)
 
     if not results["products"] and results["totalMatched"] == 0:
         catalog_count = db.execute(
@@ -333,7 +334,12 @@ async def shopping_assistant(
         }
         for product in results["products"]
     ]
-    return {"answer": answer, "products": results["products"][:6], "sources": sources}
+    return {
+        "answer": answer,
+        "provider": provider,
+        "products": results["products"][:6],
+        "sources": sources,
+    }
 
 
 @app.get("/ai/status", tags=["Python AI"], summary="Get the vendor-scoped Python RAG status")

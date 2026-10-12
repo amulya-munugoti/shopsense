@@ -148,6 +148,7 @@ export default function VendorAssistant() {
         id: `ai-${Date.now()}`,
         sender: "ai",
         text: res.data.answer,
+        provider: res.data.provider,
         products: res.data.products || [],
         sources: res.data.sources || []
       };
@@ -350,6 +351,11 @@ export default function VendorAssistant() {
                 }}
               >
                 <MessageText text={msg.text} />
+                {msg.provider && (
+                  <p className="mt-2 text-[10px] font-medium" style={{ color: "var(--ink-soft)" }}>
+                    Answer engine: {msg.provider}
+                  </p>
+                )}
 
                 {/* Product Cards */}
                 {msg.products && msg.products.length > 0 && (

@@ -629,7 +629,8 @@ class PythonAiEndpointTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(set(result), {"answer", "products", "sources"})
+        self.assertEqual(set(result), {"answer", "provider", "products", "sources"})
+        self.assertIn("Grounded Catalog RAG", result["provider"])
         self.assertTrue(result["products"])
         self.assertTrue(all(product["vendorId"] == 1 for product in result["products"]))
         self.assertNotIn("Yoga Starter Mat", [product["name"] for product in result["products"]])
