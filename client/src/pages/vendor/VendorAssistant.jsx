@@ -329,10 +329,10 @@ export default function VendorAssistant() {
 
               {/* Bubble */}
               <div
-                className={`w-full rounded-2xl px-3 py-3 sm:px-5 sm:py-3.5 ${
+                className={`rounded-2xl px-3 py-3 sm:px-5 sm:py-3.5 break-words ${
                   msg.sender === "user"
-                    ? "max-w-[92%] rounded-br-none shadow-sm text-white"
-                    : "max-w-full border rounded-tl-none shadow-sm sm:max-w-3xl"
+                    ? "w-fit max-w-[92%] rounded-br-none shadow-sm text-white"
+                    : "w-full max-w-full border rounded-tl-none shadow-sm sm:max-w-3xl"
                 } ${msg.isError ? "border-red-200 bg-red-50 dark:bg-red-950/20" : ""}`}
                 style={{
                   background: msg.isError
