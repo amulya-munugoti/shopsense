@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: shopsense-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    disk:
+      name: shopsense-data
+      mountPath: /app/server
+      sizeGB: 1
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DB_PATH
+        value: /app/server/db/shopsense.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_ORIGIN
+        fromService:
+          type: web
+          name: shopsense-client
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_NAME
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: web
+    name: shopsense-client
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    rootDir: ./client
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: shopsense-api
+          envVarKey: RENDER_EXTERNAL_URL
