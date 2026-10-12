@@ -375,13 +375,14 @@ class PythonGenerationTests(unittest.IsolatedAsyncioTestCase):
                 {"GEMINI_API_KEY": "test-gemini-key", "OPENAI_API_KEY": "test-openai-key"},
             ), patch("analytics_api.ai_rag.httpx.AsyncClient", FakeClient):
                 answer, provider = await ai_rag.generate_answer("Show fitness products", results)
+                configured_provider = ai_rag._configured_provider()[0]
 
             self.assertEqual(answer, "GPT catalog answer.")
             self.assertEqual(provider, "OpenAI + Python RAG")
             self.assertEqual(len(requests), 1)
             self.assertIn("api.openai.com", requests[0][0])
             self.assertEqual(requests[0][1]["json"]["model"], "gpt-4o-mini")
-            self.assertEqual(ai_rag._configured_provider()[0], "OpenAI")
+            self.assertEqual(configured_provider, "OpenAI")
         finally:
             db.close()
 
