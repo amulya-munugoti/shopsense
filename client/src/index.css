@@ -59,9 +59,28 @@ h1, h2, h3, .font-display {
   display: none;
 }
 
+.assistant-page {
+  width: calc(100% + 2rem);
+  margin-left: -1rem;
+}
+
 .assistant-chat-panel {
-  height: min(760px, max(420px, calc(100dvh - 320px)));
+  height: min(820px, max(420px, calc(100dvh - 350px)));
   min-height: 420px;
+}
+
+@media (min-width: 640px) {
+  .assistant-page {
+    width: calc(100% + 3rem);
+    margin-left: -1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .assistant-page {
+    width: calc(100% + 4rem);
+    margin-left: -2rem;
+  }
 }
 
 @media (max-height: 700px) {

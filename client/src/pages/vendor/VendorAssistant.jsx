@@ -210,7 +210,7 @@ export default function VendorAssistant() {
   };
 
   return (
-    <div className="assistant-page mx-auto w-full max-w-6xl space-y-5 pb-12">
+    <div className="assistant-page mx-auto w-full max-w-none space-y-4 pb-8">
 
       {/* Header Banner */}
       <header
@@ -357,7 +357,7 @@ export default function VendorAssistant() {
                     <p className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--primary)" }}>
                       <Package size={13} /> Products ({msg.products.length})
                     </p>
-                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       {msg.products.map((p, idx) => {
                         // Determine if this is a live catalog product (numeric ID) or dataset product (string like P001)
                         const isLiveCatalog = p.origin === "live_catalog" || /^\d+$/.test(String(p.id));
