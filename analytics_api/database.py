@@ -125,16 +125,14 @@ def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
 
 
 def seed_demo_accounts(connection: sqlite3.Connection) -> None:
-    """Seed explicitly configured demo users only in a local development environment."""
+    """Seed demo users locally, or on deployments that explicitly enable demo access."""
     admin_email = os.getenv("DEMO_ADMIN_EMAIL", "").strip()
     admin_password = os.getenv("DEMO_ADMIN_PASSWORD", "")
     vendor_email = os.getenv("DEMO_VENDOR_EMAIL", "").strip()
     vendor_password = os.getenv("DEMO_VENDOR_PASSWORD", "")
     configured = any((admin_email, admin_password, vendor_email, vendor_password))
-    if not configured:
-        return
-
     is_development = os.getenv("APP_ENV", "").strip().lower() in {"development", "dev"}
+    demo_enabled = os.getenv("ENABLE_DEMO_ACCOUNTS", "").strip().lower() in {"1", "true", "yes"}
     deployment_markers = (
         "RENDER",
         "VERCEL",
@@ -146,8 +144,21 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
         "RAILWAY_ENVIRONMENT",
     )
     deployed = any(os.getenv(key, "").strip() for key in deployment_markers)
-    if not is_development or deployed:
+    if not is_development and not demo_enabled:
+        if configured:
+            raise RuntimeError("DEMO_* accounts require local development or ENABLE_DEMO_ACCOUNTS=true.")
+        return
+    if is_development and deployed and not demo_enabled:
         raise RuntimeError("DEMO_* accounts are supported only in a local development environment.")
+
+    if demo_enabled:
+        admin_email = admin_email or "admin@demo.com"
+        admin_password = admin_password or "admin123"
+        vendor_email = vendor_email or "vendor@demo.com"
+        vendor_password = vendor_password or "vendor123"
+        configured = True
+    if not configured:
+        return
 
     accounts = (
         ("admin", admin_email, admin_password),
@@ -170,6 +181,8 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
             password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
 
             if role == "admin":
+                if connection.execute("SELECT 1 FROM admins LIMIT 1").fetchone():
+                    continue
                 connection.execute(
                     """
                     INSERT OR IGNORE INTO admins (name, email, password, email_verified)
@@ -182,6 +195,8 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
                     (email,),
                 ).fetchone()
             else:
+                if connection.execute("SELECT 1 FROM vendors LIMIT 1").fetchone():
+                    continue
                 connection.execute(
                     """
                     INSERT OR IGNORE INTO vendors
@@ -317,8 +332,8 @@ def initialize_database() -> None:
                 )
             connection.execute(f"UPDATE {table} SET email_verified = 1")
         connection.execute("DROP TABLE IF EXISTS email_verifications")
-        seed_demo_accounts(connection)
         seed_bootstrap_accounts(connection)
+        seed_demo_accounts(connection)
         product_migrations = {
             "image_url": "TEXT",
             "seo_title": "TEXT NOT NULL DEFAULT ''",
