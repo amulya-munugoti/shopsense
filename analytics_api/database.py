@@ -2,6 +2,7 @@
 
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +119,28 @@ CREATE INDEX IF NOT EXISTS idx_products_vendor_stock ON products(vendor_id, stoc
 CREATE INDEX IF NOT EXISTS idx_sales_vendor_date ON sales(vendor_id, sold_at);
 CREATE INDEX IF NOT EXISTS idx_sales_vendor_product ON sales(vendor_id, product_id);
 """
+
+DEMO_CATALOG_VERSION = "2026-08-polished-catalog-monthly-sales"
+DEMO_CATALOG = (
+    ("Nova Smart Watch", "A sleek everyday smartwatch for calls, activity tracking, and timely notifications.", "Electronics", 4999, 34, "/uploads/products/demo-smart-watch.jpg"),
+    ("SoundWave Wireless Headphones", "Comfortable over-ear headphones for focused work, travel, and everyday listening.", "Electronics", 3299, 48, "/uploads/products/demo-wireless-headphones.jpg"),
+    ("Pulse Mini Bluetooth Speaker", "A compact portable speaker that brings clear sound to picnics and small gatherings.", "Electronics", 1899, 0, "/uploads/products/demo-bluetooth-speaker.jpg"),
+    ("Ceramic Coffee Mug Set", "A set of four glazed ceramic mugs for coffee, tea, and relaxed morning routines.", "Home & Kitchen", 899, 26, "/uploads/products/demo-coffee-mugs.jpg"),
+    ("Stainless Steel Water Bottle", "A reusable insulated bottle that keeps refreshments close during work, commutes, and workouts.", "Home & Kitchen", 749, 62, "/uploads/products/demo-water-bottle.jpg"),
+    ("Modern LED Desk Lamp", "A clean, adjustable desk lamp that adds comfortable task lighting to your workspace.", "Home & Kitchen", 1599, 9, "/uploads/products/demo-desk-lamp.jpg"),
+    ("Everyday Laptop Backpack", "A practical backpack with room for a laptop, daily essentials, and short trips.", "Accessories", 2199, 31, "/uploads/products/demo-laptop-backpack.jpg"),
+    ("Men's Cotton Crew T-Shirt", "A soft cotton crew-neck T-shirt designed for easy layering and everyday comfort.", "Fashion", 699, 75, "/uploads/products/demo-cotton-tshirt.jpg"),
+    ("Stride Running Shoes", "Lightweight running shoes with a comfortable fit for walks, runs, and daily movement.", "Fashion", 3499, 18, "/uploads/products/demo-running-shoes.jpg"),
+    ("Classic Polarized Sunglasses", "Timeless sunglasses that add an easy finishing touch to bright-day outfits.", "Accessories", 1299, 0, "/uploads/products/demo-sunglasses.jpg"),
+    ("Daily Glow Skincare Set", "A simple three-step skincare set for a fresh, cared-for everyday routine.", "Beauty", 1499, 22, "/uploads/products/demo-skincare-set.jpg"),
+    ("Ionic Hair Dryer", "A lightweight hair dryer for quick everyday styling at home or while travelling.", "Beauty", 2499, 14, "/uploads/products/demo-hair-dryer.jpg"),
+    ("Flex Yoga Mat", "A supportive yoga mat with a comfortable surface for stretching, yoga, and floor workouts.", "Sports", 1199, 39, "/uploads/products/demo-yoga-mat.jpg"),
+    ("Neoprene Dumbbell Pair", "A versatile pair of dumbbells for home strength sessions and everyday training.", "Sports", 1799, 11, "/uploads/products/demo-dumbbells.jpg"),
+    ("Bamboo Cutting Board", "A smooth bamboo cutting board for everyday prep, serving, and kitchen organization.", "Home & Kitchen", 999, 44, "/uploads/products/demo-cutting-board.jpg"),
+    ("Leather Card Wallet", "A slim leather card wallet that keeps daily cards organized without extra bulk.", "Accessories", 1099, 7, "/uploads/products/demo-card-wallet.jpg"),
+    ("Smart Fitness Band", "A lightweight fitness band for tracking daily activity, workouts, and healthy routines.", "Electronics", 1999, 53, "/uploads/products/demo-fitness-band.jpg"),
+    ("Soft Makeup Brush Set", "A curated makeup brush set for blending, buffing, and creating polished everyday looks.", "Beauty", 899, 16, "/uploads/products/demo-makeup-brushes.jpg"),
+)
 
 
 def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
@@ -281,6 +304,58 @@ def seed_bootstrap_accounts(connection: sqlite3.Connection) -> None:
             connection.execute(config["insert"], values)
 
 
+def seed_demo_catalog(connection: sqlite3.Connection) -> None:
+    """Restore the legacy JavaScript demo catalog for the demo vendor when empty."""
+    vendor = connection.execute(
+        "SELECT id FROM vendors WHERE lower(email) = ?",
+        ("vendor@demo.com",),
+    ).fetchone()
+    if vendor is None:
+        return
+    seeded_version = connection.execute(
+        "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+        ("demo_catalog_version",),
+    ).fetchone()
+    if seeded_version and seeded_version["setting_value"] == DEMO_CATALOG_VERSION:
+        return
+    if connection.execute(
+        "SELECT 1 FROM products WHERE vendor_id = ? LIMIT 1",
+        (vendor["id"],),
+    ).fetchone():
+        return
+
+    insert_product = """INSERT INTO products
+        (vendor_id, name, description, category, price, stock, image_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?)"""
+    insert_sale = """INSERT INTO sales (vendor_id, product_id, quantity, amount, sold_at)
+        VALUES (?, ?, ?, ?, ?)"""
+    now = datetime.now(timezone.utc)
+    with connection:
+        for index, product in enumerate(DEMO_CATALOG):
+            cursor = connection.execute(insert_product, (vendor["id"], *product))
+            product_id = cursor.lastrowid
+            for month_offset in range(12):
+                month_index = now.year * 12 + (now.month - 1) - month_offset
+                sale_year, zero_based_month = divmod(month_index, 12)
+                sale_date = datetime(
+                    sale_year,
+                    zero_based_month + 1,
+                    6 + (index % 20),
+                    12,
+                    tzinfo=timezone.utc,
+                )
+                quantity = 1 + ((index + month_offset) % 3)
+                sold_at = sale_date.strftime("%Y-%m-%d %H:%M:%S")
+                connection.execute(
+                    insert_sale,
+                    (vendor["id"], product_id, quantity, quantity * product[3], sold_at),
+                )
+        connection.execute(
+            "INSERT OR REPLACE INTO app_settings (setting_key, setting_value) VALUES (?, ?)",
+            ("demo_catalog_version", DEMO_CATALOG_VERSION),
+        )
+
+
 def _import_analytics_dataset(connection: sqlite3.Connection) -> None:
     if connection.execute("SELECT 1 FROM analytics_orders LIMIT 1").fetchone():
         return
@@ -359,6 +434,7 @@ def initialize_database() -> None:
         for column, definition in product_migrations.items():
             if column not in product_columns:
                 connection.execute(f"ALTER TABLE products ADD COLUMN {column} {definition}")
+        seed_demo_catalog(connection)
         connection.commit()
         _import_analytics_dataset(connection)
     finally:
