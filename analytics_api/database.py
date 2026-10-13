@@ -120,14 +120,14 @@ CREATE INDEX IF NOT EXISTS idx_sales_vendor_date ON sales(vendor_id, sold_at);
 CREATE INDEX IF NOT EXISTS idx_sales_vendor_product ON sales(vendor_id, product_id);
 """
 
-DEMO_CATALOG_VERSION = "2026-08-polished-catalog-monthly-sales"
+DEMO_CATALOG_VERSION = "2026-08-polished-catalog-monthly-sales-low-stock"
 DEMO_CATALOG = (
     ("Nova Smart Watch", "A sleek everyday smartwatch for calls, activity tracking, and timely notifications.", "Electronics", 4999, 34, "/uploads/products/demo-smart-watch.jpg"),
     ("SoundWave Wireless Headphones", "Comfortable over-ear headphones for focused work, travel, and everyday listening.", "Electronics", 3299, 48, "/uploads/products/demo-wireless-headphones.jpg"),
     ("Pulse Mini Bluetooth Speaker", "A compact portable speaker that brings clear sound to picnics and small gatherings.", "Electronics", 1899, 0, "/uploads/products/demo-bluetooth-speaker.jpg"),
     ("Ceramic Coffee Mug Set", "A set of four glazed ceramic mugs for coffee, tea, and relaxed morning routines.", "Home & Kitchen", 899, 26, "/uploads/products/demo-coffee-mugs.jpg"),
     ("Stainless Steel Water Bottle", "A reusable insulated bottle that keeps refreshments close during work, commutes, and workouts.", "Home & Kitchen", 749, 62, "/uploads/products/demo-water-bottle.jpg"),
-    ("Modern LED Desk Lamp", "A clean, adjustable desk lamp that adds comfortable task lighting to your workspace.", "Home & Kitchen", 1599, 9, "/uploads/products/demo-desk-lamp.jpg"),
+    ("Modern LED Desk Lamp", "A clean, adjustable desk lamp that adds comfortable task lighting to your workspace.", "Home & Kitchen", 1599, 4, "/uploads/products/demo-desk-lamp.jpg"),
     ("Everyday Laptop Backpack", "A practical backpack with room for a laptop, daily essentials, and short trips.", "Accessories", 2199, 31, "/uploads/products/demo-laptop-backpack.jpg"),
     ("Men's Cotton Crew T-Shirt", "A soft cotton crew-neck T-shirt designed for easy layering and everyday comfort.", "Fashion", 699, 75, "/uploads/products/demo-cotton-tshirt.jpg"),
     ("Stride Running Shoes", "Lightweight running shoes with a comfortable fit for walks, runs, and daily movement.", "Fashion", 3499, 18, "/uploads/products/demo-running-shoes.jpg"),
@@ -135,7 +135,7 @@ DEMO_CATALOG = (
     ("Daily Glow Skincare Set", "A simple three-step skincare set for a fresh, cared-for everyday routine.", "Beauty", 1499, 22, "/uploads/products/demo-skincare-set.jpg"),
     ("Ionic Hair Dryer", "A lightweight hair dryer for quick everyday styling at home or while travelling.", "Beauty", 2499, 14, "/uploads/products/demo-hair-dryer.jpg"),
     ("Flex Yoga Mat", "A supportive yoga mat with a comfortable surface for stretching, yoga, and floor workouts.", "Sports", 1199, 39, "/uploads/products/demo-yoga-mat.jpg"),
-    ("Neoprene Dumbbell Pair", "A versatile pair of dumbbells for home strength sessions and everyday training.", "Sports", 1799, 11, "/uploads/products/demo-dumbbells.jpg"),
+    ("Neoprene Dumbbell Pair", "A versatile pair of dumbbells for home strength sessions and everyday training.", "Sports", 1799, 3, "/uploads/products/demo-dumbbells.jpg"),
     ("Bamboo Cutting Board", "A smooth bamboo cutting board for everyday prep, serving, and kitchen organization.", "Home & Kitchen", 999, 44, "/uploads/products/demo-cutting-board.jpg"),
     ("Leather Card Wallet", "A slim leather card wallet that keeps daily cards organized without extra bulk.", "Accessories", 1099, 7, "/uploads/products/demo-card-wallet.jpg"),
     ("Smart Fitness Band", "A lightweight fitness band for tracking daily activity, workouts, and healthy routines.", "Electronics", 1999, 53, "/uploads/products/demo-fitness-band.jpg"),
@@ -318,10 +318,25 @@ def seed_demo_catalog(connection: sqlite3.Connection) -> None:
     ).fetchone()
     if seeded_version and seeded_version["setting_value"] == DEMO_CATALOG_VERSION:
         return
-    if connection.execute(
+    existing_products = connection.execute(
         "SELECT 1 FROM products WHERE vendor_id = ? LIMIT 1",
         (vendor["id"],),
-    ).fetchone():
+    ).fetchone()
+    if existing_products:
+        if seeded_version and seeded_version["setting_value"] == "2026-08-polished-catalog-monthly-sales":
+            with connection:
+                connection.execute(
+                    "UPDATE products SET stock = 4 WHERE vendor_id = ? AND name = ?",
+                    (vendor["id"], "Modern LED Desk Lamp"),
+                )
+                connection.execute(
+                    "UPDATE products SET stock = 3 WHERE vendor_id = ? AND name = ?",
+                    (vendor["id"], "Neoprene Dumbbell Pair"),
+                )
+                connection.execute(
+                    "INSERT OR REPLACE INTO app_settings (setting_key, setting_value) VALUES (?, ?)",
+                    ("demo_catalog_version", DEMO_CATALOG_VERSION),
+                )
         return
 
     insert_product = """INSERT INTO products
