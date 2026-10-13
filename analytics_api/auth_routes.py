@@ -63,13 +63,14 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
         )
 
     password_hash = bcrypt.hashpw(request.password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
+    vendor_status = "approved" if os.getenv("AUTO_APPROVE_VENDORS", "").strip().lower() in {"1", "true", "yes"} else "pending"
     try:
         with db:
             db.execute(
                 """
                 INSERT INTO vendors
                     (full_name, business_name, email, password, phone, business_address, status, email_verified)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', 1)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
                 """,
                 (
                     full_name,
@@ -78,6 +79,7 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
                     password_hash,
                     request.phone.strip() if request.phone else None,
                     request.businessAddress.strip() if request.businessAddress else None,
+                    vendor_status,
                 ),
             )
     except sqlite3.IntegrityError as exc:
@@ -88,10 +90,12 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
             ) from exc
         raise
 
-    return {
-        "message": "Registration submitted. Your account is ready for admin review.",
-        "email": email,
-    }
+    message = (
+        "Registration successful. You can sign in now."
+        if vendor_status == "approved"
+        else "Registration submitted. Your account is ready for admin review."
+    )
+    return {"message": message, "email": email}
 
 
 @router.post("/login")
