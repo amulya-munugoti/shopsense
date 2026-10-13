@@ -12,6 +12,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import api from "../../lib/api";
+import { productImageUrl } from "../../lib/productImageUrl";
 
 function formatINR(val) {
   if (val === undefined || val === null) return "₹0";
@@ -383,7 +384,7 @@ export default function VendorAssistant() {
                             {/* Product Image */}
                             <div className="shrink-0">
                               <img
-                                src={p.imageUrl || "/placeholder.png"}
+                                src={p.imageUrl ? productImageUrl(p.imageUrl) : "/placeholder.png"}
                                 alt={p.name}
                                 className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 object-cover rounded-lg border"
                                 style={{ borderColor: "var(--border)" }}
