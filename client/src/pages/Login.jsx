@@ -45,14 +45,14 @@ function removeLoginHistory(role, emailToRemove) {
   }
 }
 
-export default function Login() {
-  const [role, setRole] = useState("vendor");
+export default function Login({ initialRole = "vendor" }) {
+  const [role, setRole] = useState(initialRole);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loginHistory, setLoginHistory] = useState(() => getLoginHistory("vendor"));
+  const [loginHistory, setLoginHistory] = useState(() => getLoginHistory(initialRole));
   const [showEmailHistory, setShowEmailHistory] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
