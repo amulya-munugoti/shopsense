@@ -63,7 +63,11 @@ def register(request: RegistrationRequest, db: DBConn) -> dict[str, str]:
         )
 
     password_hash = bcrypt.hashpw(request.password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
-    vendor_status = "approved" if os.getenv("AUTO_APPROVE_VENDORS", "").strip().lower() in {"1", "true", "yes"} else "pending"
+    vendor_status = (
+        "approved"
+        if os.getenv("AUTO_APPROVE_VENDORS", "").strip().lower() in {"1", "true", "yes"}
+        else "pending"
+    )
     try:
         with db:
             db.execute(

@@ -9,7 +9,9 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedMessage, setSubmittedMessage] = useState("");
   const navigate = useNavigate();
+  const autoApprove = import.meta.env.VITE_AUTO_APPROVE_VENDORS === "true";
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
@@ -18,7 +20,8 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      await api.post("/auth/register", form);
+      const { data } = await api.post("/auth/register", form);
+      setSubmittedMessage(data.message);
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong. Try again.");
@@ -31,9 +34,9 @@ export default function Register() {
     return <div className="min-h-screen flex items-center justify-center p-5" style={{ background: "var(--surface)" }}>
       <div className="w-full max-w-md text-center p-8 rounded-2xl shadow-lg shadow-emerald-950/5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
         <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--success-soft)" }}><CheckCircle2 size={28} style={{ color: "var(--success)" }} /></div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "var(--success)" }}>Application submitted</p>
-        <h2 className="font-display text-xl font-bold mb-3">Your account is awaiting review.</h2>
-        <p className="text-sm leading-6 mb-6" style={{ color: "var(--ink-soft)" }}>You can sign in after an administrator approves your vendor account.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "var(--success)" }}>{autoApprove ? "Account created" : "Application submitted"}</p>
+        <h2 className="font-display text-xl font-bold mb-3">{autoApprove ? "Your vendor account is ready." : "Your account is awaiting review."}</h2>
+        <p className="text-sm leading-6 mb-6" style={{ color: "var(--ink-soft)" }}>{submittedMessage || (autoApprove ? "You can sign in now." : "You can sign in after an administrator approves your vendor account.")}</p>
         <button onClick={() => navigate("/login")} className="w-full py-3 rounded-xl text-sm font-semibold text-white focus-ring" style={{ background: "var(--primary)" }}>Back to sign in</button>
       </div>
     </div>;
@@ -46,7 +49,7 @@ export default function Register() {
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--primary)" }}><PackageSearch size={19} color="white" /></div>
           <span className="font-display text-lg font-bold">ShopSense</span>
         </Link>
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--ink-soft)" }}><ShieldCheck size={15} style={{ color: "var(--success)" }} /> Admin approval required</div>
+        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--ink-soft)" }}><ShieldCheck size={15} style={{ color: "var(--success)" }} /> {autoApprove ? "Sign in after registration" : "Admin approval required"}</div>
       </div>
 
       <div className="rounded-2xl p-5 sm:p-7 shadow-lg shadow-emerald-950/5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
@@ -54,7 +57,7 @@ export default function Register() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] mb-2" style={{ color: "var(--primary-light)" }}>Vendor application</p>
             <h1 className="font-display text-2xl font-bold">Register your business</h1>
-            <p className="text-sm mt-1" style={{ color: "var(--ink-soft)" }}>An administrator must approve your account before you can sign in.</p>
+            <p className="text-sm mt-1" style={{ color: "var(--ink-soft)" }}>{autoApprove ? "Create an account to access your vendor workspace." : "An administrator must approve your account before you can sign in."}</p>
           </div>
         </div>
 

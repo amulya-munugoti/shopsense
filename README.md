@@ -173,9 +173,9 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-adm
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-vendor
 ```
 
-The administrator and approved vendor can then sign in with their configured credentials. Additional vendor registrations still require administrator approval.
+The administrator and approved vendor can then sign in with their configured credentials. Set `AUTO_APPROVE_VENDORS=true` to let new vendor registrations sign in immediately; otherwise, they remain pending until an administrator approves them. Admin access remains limited to configured administrators.
 
-For Render, set the bootstrap values under the `shopsense-api` service's environment settings and deploy. Startup creates the accounts automatically. Keep the passwords private and use different values for the two accounts.
+For Render, `AUTO_APPROVE_VENDORS=true` is configured by the blueprint. Anyone can choose **Vendor → Register your business** and sign in after creating an account. Admin credentials must still be configured by the app owner. Set the bootstrap values under the `shopsense-api` service's environment settings if you also need the initial admin and vendor accounts created at startup. Keep passwords private and use different values for the two accounts.
 
 ### Run services separately
 
@@ -190,6 +190,7 @@ The Python API reads the root `.env` and can also read `server/.env`. Keep provi
 | Variable | Use |
 | --- | --- |
 | `APP_ENV` | Set to `development` for local demo-account seeding. |
+| `AUTO_APPROVE_VENDORS` | Set to `true` to allow new vendor registrations to sign in without admin review. |
 | `JWT_SECRET` | Signs bearer tokens. In production, use a private value of at least 32 bytes. |
 | `PYTHON_API_PORT` | API port; default `8000`. |
 | `CLIENT_ORIGIN` | Additional frontend origin allowed by API CORS. |

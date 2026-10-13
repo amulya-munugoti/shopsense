@@ -11,6 +11,8 @@ services:
         value: production
       - key: DB_PATH
         value: /app/server/db/shopsense.db
+      - key: AUTO_APPROVE_VENDORS
+        value: "true"
       - key: JWT_SECRET
         generateValue: true
       - key: CLIENT_ORIGIN
@@ -53,3 +55,5 @@ services:
           type: web
           name: shopsense-api
           envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_AUTO_APPROVE_VENDORS
+        value: "true"
