@@ -165,16 +165,17 @@ Open <http://localhost:5173>. The API runs on port `8000` by default. Keep the t
 
 ### 4. Create the first admin and an initial approved vendor
 
-Set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_VENDOR_EMAIL`, and `BOOTSTRAP_VENDOR_PASSWORD` in the API environment. Both passwords must be 12–72 bytes. The vendor name and business name are optional. After the API starts, make each one-time request:
+Set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_VENDOR_EMAIL`, and `BOOTSTRAP_VENDOR_PASSWORD` in the API environment. Both passwords must be 12–72 bytes. On API startup, the first admin and an approved initial vendor are created automatically if their account tables are empty. The vendor name and business name are optional.
 
 ```powershell
+# Optional manual bootstrap endpoints, if you prefer to create accounts after startup:
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-admin
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-vendor
 ```
 
 The administrator and approved vendor can then sign in with their configured credentials. Additional vendor registrations still require administrator approval.
 
-For Render, set the bootstrap values under the `shopsense-api` service's environment settings, deploy, then POST to `https://<your-api-url>/api/auth/bootstrap-admin` and `https://<your-api-url>/api/auth/bootstrap-vendor` once each. Keep the passwords private and use different values for the two accounts.
+For Render, set the bootstrap values under the `shopsense-api` service's environment settings and deploy. Startup creates the accounts automatically. Keep the passwords private and use different values for the two accounts.
 
 ### Run services separately
 

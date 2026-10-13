@@ -201,6 +201,61 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
                 )
 
 
+def seed_bootstrap_accounts(connection: sqlite3.Connection) -> None:
+    """Create configured first production accounts once, without replacing existing accounts."""
+    account_configs = (
+        {
+            "role": "admin",
+            "email": os.getenv("BOOTSTRAP_ADMIN_EMAIL", "").strip(),
+            "password": os.getenv("BOOTSTRAP_ADMIN_PASSWORD", ""),
+            "name": os.getenv("BOOTSTRAP_ADMIN_NAME", "ShopSense Administrator").strip()
+            or "ShopSense Administrator",
+            "table": "admins",
+            "insert": "INSERT INTO admins (name, email, password, email_verified) VALUES (?, ?, ?, ?)",
+        },
+        {
+            "role": "vendor",
+            "email": os.getenv("BOOTSTRAP_VENDOR_EMAIL", "").strip(),
+            "password": os.getenv("BOOTSTRAP_VENDOR_PASSWORD", ""),
+            "name": os.getenv("BOOTSTRAP_VENDOR_NAME", "ShopSense Vendor").strip() or "ShopSense Vendor",
+            "business_name": os.getenv("BOOTSTRAP_VENDOR_BUSINESS_NAME", "ShopSense Store").strip()
+            or "ShopSense Store",
+            "table": "vendors",
+            "insert": """INSERT INTO vendors
+                (full_name, business_name, email, password, status, email_verified)
+                VALUES (?, ?, ?, ?, 'approved', 1)""",
+        },
+    )
+
+    for config in account_configs:
+        email = config["email"]
+        password = config["password"]
+        if not email and not password:
+            continue
+        if not email or not password:
+            raise RuntimeError(
+                f"Both BOOTSTRAP_{config['role'].upper()}_EMAIL and "
+                f"BOOTSTRAP_{config['role'].upper()}_PASSWORD are required."
+            )
+        if len(password) < 12 or len(password.encode("utf-8")) > 72:
+            raise RuntimeError(f"BOOTSTRAP_{config['role'].upper()}_PASSWORD must be 12-72 bytes long.")
+        try:
+            normalized_email = validate_email(email, check_deliverability=False).normalized.lower()
+        except EmailNotValidError as exc:
+            raise RuntimeError(f"BOOTSTRAP_{config['role'].upper()}_EMAIL must be a valid email address.") from exc
+
+        if connection.execute(f"SELECT 1 FROM {config['table']} LIMIT 1").fetchone():
+            continue
+
+        password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
+        if config["role"] == "admin":
+            values = (config["name"], normalized_email, password_hash, 1)
+        else:
+            values = (config["name"], config["business_name"], normalized_email, password_hash)
+        with connection:
+            connection.execute(config["insert"], values)
+
+
 def _import_analytics_dataset(connection: sqlite3.Connection) -> None:
     if connection.execute("SELECT 1 FROM analytics_orders LIMIT 1").fetchone():
         return
@@ -263,6 +318,7 @@ def initialize_database() -> None:
             connection.execute(f"UPDATE {table} SET email_verified = 1")
         connection.execute("DROP TABLE IF EXISTS email_verifications")
         seed_demo_accounts(connection)
+        seed_bootstrap_accounts(connection)
         product_migrations = {
             "image_url": "TEXT",
             "seo_title": "TEXT NOT NULL DEFAULT ''",
