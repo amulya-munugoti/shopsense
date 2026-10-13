@@ -131,8 +131,11 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
     vendor_email = os.getenv("DEMO_VENDOR_EMAIL", "").strip()
     vendor_password = os.getenv("DEMO_VENDOR_PASSWORD", "")
     configured = any((admin_email, admin_password, vendor_email, vendor_password))
-    is_development = os.getenv("APP_ENV", "").strip().lower() in {"development", "dev"}
-    demo_enabled = os.getenv("ENABLE_DEMO_ACCOUNTS", "").strip().lower() in {"1", "true", "yes"}
+    app_env = os.getenv("APP_ENV", "").strip().lower()
+    is_development = app_env in {"development", "dev"}
+    enable_setting = os.getenv("ENABLE_DEMO_ACCOUNTS", "").strip().lower()
+    demo_enabled = enable_setting in {"1", "true", "yes"}
+    seed_production_defaults = app_env == "production" and enable_setting not in {"0", "false", "no"}
     deployment_markers = (
         "RENDER",
         "VERCEL",
@@ -144,14 +147,14 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
         "RAILWAY_ENVIRONMENT",
     )
     deployed = any(os.getenv(key, "").strip() for key in deployment_markers)
-    if not is_development and not demo_enabled:
-        if configured:
-            raise RuntimeError("DEMO_* accounts require local development or ENABLE_DEMO_ACCOUNTS=true.")
+    if configured and not is_development and not demo_enabled:
+        raise RuntimeError("Custom DEMO_* accounts require local development or ENABLE_DEMO_ACCOUNTS=true.")
+    if not is_development and not demo_enabled and not seed_production_defaults:
         return
-    if is_development and deployed and not demo_enabled:
+    if configured and is_development and deployed and not demo_enabled:
         raise RuntimeError("DEMO_* accounts are supported only in a local development environment.")
 
-    if demo_enabled:
+    if demo_enabled or seed_production_defaults:
         admin_email = admin_email or "admin@demo.com"
         admin_password = admin_password or "admin123"
         vendor_email = vendor_email or "vendor@demo.com"

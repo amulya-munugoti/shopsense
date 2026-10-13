@@ -190,7 +190,7 @@ The Python API reads the root `.env` and can also read `server/.env`. Keep provi
 | Variable | Use |
 | --- | --- |
 | `APP_ENV` | Set to `development` for local demo-account seeding. |
-| `ENABLE_DEMO_ACCOUNTS` | Set to `true` to seed the demo admin and vendor on an empty database. Render's blueprint enables this. |
+| `ENABLE_DEMO_ACCOUNTS` | Set to `false` to disable production demo accounts. Render's blueprint enables them. |
 | `AUTO_APPROVE_VENDORS` | Set to `true` to allow new vendor registrations to sign in without admin review. |
 | `JWT_SECRET` | Signs bearer tokens. In production, use a private value of at least 32 bytes. |
 | `PYTHON_API_PORT` | API port; default `8000`. |
@@ -209,7 +209,7 @@ The Python API reads the root `.env` and can also read `server/.env`. Keep provi
 | `VITE_API_PROXY_TARGET` | Vite development proxy target; default `http://127.0.0.1:8000`. |
 | `VITE_API_URL` | Optional API base URL when frontend and API are hosted separately. |
 
-Email verification is not part of the current registration flow. New vendors require admin approval unless `AUTO_APPROVE_VENDORS=true`. With demo seeding enabled, a fresh deployment creates `admin@demo.com` / `admin123` and `vendor@demo.com` / `vendor123`, matching the former JavaScript backend. These are public demo credentials: anyone who knows them can use the admin account. Change the demo credentials through `DEMO_*` environment variables or disable `ENABLE_DEMO_ACCOUNTS` for a private deployment.
+Email verification is not part of the current registration flow. New vendors require admin approval unless `AUTO_APPROVE_VENDORS=true`. In production, a fresh database creates `admin@demo.com` / `admin123` and `vendor@demo.com` / `vendor123` by default, matching the former JavaScript backend. Set `ENABLE_DEMO_ACCOUNTS=false` to disable this. These are public demo credentials: anyone who knows them can use the admin account.
 
 ## Build, lint, and tests
 
