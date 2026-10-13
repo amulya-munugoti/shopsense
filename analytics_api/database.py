@@ -144,6 +144,10 @@ def seed_demo_accounts(connection: sqlite3.Connection) -> None:
         "WEBSITE_INSTANCE_ID",
         "FUNCTIONS_WORKER_RUNTIME",
         "RAILWAY_ENVIRONMENT",
+        "RAILWAY_ENVIRONMENT_ID",
+        "RAILWAY_PROJECT_ID",
+        "RAILWAY_SERVICE_ID",
+        "RAILWAY_DEPLOYMENT_ID",
     )
     deployed = any(os.getenv(key, "").strip() for key in deployment_markers)
     seed_production_defaults = (

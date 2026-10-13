@@ -53,6 +53,8 @@ _runtime_values = {
 _is_deployed = any(os.getenv(key, "").strip() for key in (
     "RENDER", "VERCEL", "DYNO", "K_SERVICE", "AWS_LAMBDA_FUNCTION_NAME",
     "WEBSITE_INSTANCE_ID", "FUNCTIONS_WORKER_RUNTIME", "RAILWAY_ENVIRONMENT",
+    "RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID",
+    "RAILWAY_DEPLOYMENT_ID",
 ))
 if "production" in _runtime_values or _is_deployed:
     if (
