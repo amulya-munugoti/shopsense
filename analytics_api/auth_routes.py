@@ -182,3 +182,37 @@ def bootstrap_admin(db: DBConn) -> dict[str, str]:
             (name, email, password_hash),
         )
     return {"message": "Administrator created. You can sign in now."}
+
+
+@router.post("/bootstrap-vendor", status_code=status.HTTP_201_CREATED)
+def bootstrap_vendor(db: DBConn) -> dict[str, str]:
+    """Create the initial approved vendor from configured environment credentials."""
+    raw_email = os.getenv("BOOTSTRAP_VENDOR_EMAIL", "").strip()
+    full_name = os.getenv("BOOTSTRAP_VENDOR_NAME", "ShopSense Vendor").strip() or "ShopSense Vendor"
+    business_name = os.getenv("BOOTSTRAP_VENDOR_BUSINESS_NAME", "Demo Store").strip() or "Demo Store"
+    password = os.getenv("BOOTSTRAP_VENDOR_PASSWORD", "")
+    if not raw_email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Set BOOTSTRAP_VENDOR_EMAIL and BOOTSTRAP_VENDOR_PASSWORD before bootstrapping a vendor.",
+        )
+    email = _normalize_email(raw_email)
+    if len(password) < 12 or len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=400,
+            detail="The bootstrap password must be 12-72 bytes long.",
+        )
+    if db.execute("SELECT 1 FROM vendors LIMIT 1").fetchone():
+        raise HTTPException(status_code=409, detail="A vendor account is already configured.")
+
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
+    with db:
+        db.execute(
+            """
+            INSERT INTO vendors
+                (full_name, business_name, email, password, status, email_verified)
+            VALUES (?, ?, ?, ?, 'approved', 1)
+            """,
+            (full_name, business_name, email, password_hash),
+        )
+    return {"message": "Approved vendor created. You can sign in now."}

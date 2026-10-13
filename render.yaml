@@ -24,6 +24,14 @@ services:
         sync: false
       - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
+      - key: BOOTSTRAP_VENDOR_EMAIL
+        sync: false
+      - key: BOOTSTRAP_VENDOR_NAME
+        value: ShopSense Vendor
+      - key: BOOTSTRAP_VENDOR_BUSINESS_NAME
+        value: ShopSense Store
+      - key: BOOTSTRAP_VENDOR_PASSWORD
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: GEMINI_API_KEY

@@ -163,15 +163,18 @@ npm run local
 
 Open <http://localhost:5173>. The API runs on port `8000` by default. Keep the terminal open while using the app; press `Ctrl+C` to stop both services.
 
-### 4. Create the first admin and approve a vendor
+### 4. Create the first admin and an initial approved vendor
 
-After the API starts, make the one-time admin bootstrap request:
+Set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_VENDOR_EMAIL`, and `BOOTSTRAP_VENDOR_PASSWORD` in the API environment. Both passwords must be 12–72 bytes. The vendor name and business name are optional. After the API starts, make each one-time request:
 
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-admin
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-vendor
 ```
 
-Register a vendor account, then sign in as the administrator and approve the vendor in **Vendor management**. The vendor can sign in after approval.
+The administrator and approved vendor can then sign in with their configured credentials. Additional vendor registrations still require administrator approval.
+
+For Render, set the bootstrap values under the `shopsense-api` service's environment settings, deploy, then POST to `https://<your-api-url>/api/auth/bootstrap-admin` and `https://<your-api-url>/api/auth/bootstrap-vendor` once each. Keep the passwords private and use different values for the two accounts.
 
 ### Run services separately
 
@@ -193,6 +196,8 @@ The Python API reads the root `.env` and can also read `server/.env`. Keep provi
 | `BOOTSTRAP_ADMIN_EMAIL` | Initial admin email. |
 | `BOOTSTRAP_ADMIN_NAME` | Optional initial admin name. |
 | `BOOTSTRAP_ADMIN_PASSWORD` | Initial admin password, 12–72 bytes. |
+| `BOOTSTRAP_VENDOR_EMAIL`, `BOOTSTRAP_VENDOR_PASSWORD` | Initial approved vendor credentials. |
+| `BOOTSTRAP_VENDOR_NAME`, `BOOTSTRAP_VENDOR_BUSINESS_NAME` | Optional initial vendor profile values. |
 | `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD` | Optional demo admin; development only. |
 | `DEMO_VENDOR_EMAIL`, `DEMO_VENDOR_PASSWORD` | Optional approved demo vendor; development only. |
 | `OPENAI_API_KEY` | Optional OpenAI provider; tried before Gemini. |
