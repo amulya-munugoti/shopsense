@@ -237,4 +237,4 @@ With the API running, open FastAPI's interactive documentation at <http://127.0.
 
 Protected API routes require a bearer token. Vendor routes are scoped to the signed-in vendor; admin routes require an administrator account.
 
-ALL RIGHTS RESERVED BY AMULYA MUNUGOTI
+ALL RIGHTS RESERVED BY Amulya Munugoti
