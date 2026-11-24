@@ -1,240 +1,336 @@
-# ShopSense
+# 🛍️ ShopSense
 
-**A RAG-powered vendor catalog and inventory platform.** ShopSense combines vendor and admin workspaces with marketplace analytics. Its Retrieval-Augmented Generation (RAG) feature is presented in the product as the **AI Business Assistant**: it retrieves relevant records from a vendor's live catalog before answering.
+> **A RAG-powered vendor marketplace for catalog management, inventory insights, and marketplace analytics.**
 
-## Contents
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.1xx-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=20232A)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
+[![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![License](https://img.shields.io/badge/License-All_Rights_Reserved-red.svg)](#-license)
 
-- [Workflows](#workflows)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Project structure](#project-structure)
-- [Technology](#technology)
-- [Run locally](#run-locally)
-- [Configuration](#configuration)
-- [Build, lint, and tests](#build-lint-and-tests)
-- [API reference](#api-reference)
+---
 
-## Workflows
+## ✨ Overview
 
-### Vendor
+ShopSense brings vendors and administrators into one modern marketplace platform.
 
-```text
-Register → Wait for admin approval → Sign in → Manage catalog and stock
-                                      ├→ Review Insights
-                                      └→ Ask the AI Business Assistant
-```
+- **Vendors** can manage a catalog, update inventory, view sales insights, and use an AI Business Assistant.
+- **Administrators** can review vendors, approve accounts, suspend stores, and monitor marketplace activity.
+- **The AI assistant** retrieves the signed-in vendor's live catalog before generating or grounding a response.
 
-Vendors register from the sign-in page. New accounts have **pending** status and cannot sign in until an administrator approves them.
+---
 
-### Admin
+## 🎯 Key Features
 
-```text
-Bootstrap the first admin → Sign in → Review vendor accounts
-                                      ├→ Approve or suspend
-                                      ├→ Reset status to pending
-                                      └→ Remove a vendor
-```
+### 🏪 Vendor Workspace
 
-## Features
+| Feature | Description |
+| :--- | :--- |
+| **Dashboard** | Store totals, catalog health, and important product metrics |
+| **Catalog** | Search, filter, switch views, edit, remove, or create products |
+| **Inventory** | Track stock levels and receive inventory notifications |
+| **Product Editor** | Add images, descriptions, SEO fields, categories, prices, and stock |
+| **Insights** | View sales, demand, customer, market, and inventory reports |
+| **AI Business Assistant** | Ask questions grounded in the vendor's own live catalog |
+| **Profile** | Manage account and business information |
 
-| Workspace | What is implemented |
-| --- | --- |
-| Vendor dashboard | Store totals and catalog product cards |
-| My catalog | Search, category and stock filters, grid/list views, product details, edit and remove |
-| Add product | Product details, category, price, stock, image upload or image URL, description and optional SEO fields |
-| Insights | Sales reports, inventory health, customer and product reports, demand projections, vendor/marketplace benchmarks, cross-sell reports, dataset validation, CSV exports |
-| RAG / AI Business Assistant | The screen is titled **AI Business Assistant**. Its RAG pipeline retrieves relevant records from the signed-in vendor's live catalog before answering. |
-| Admin dashboard | Vendor counts and recent vendor accounts |
-| Vendor management | Filter by account status; approve, suspend, reset status, or remove vendors |
-| Profile | Edit account and business details or change the password |
+### 🛡️ Administrator Workspace
 
-Product description and SEO generation use the product name, category, and optional vendor-provided facts. OpenAI and Gemini are optional providers; the API has a grounded local fallback when a provider is not available.
+- Approve, suspend, reset, or remove vendor accounts
+- Review vendor status and marketplace-wide vendor counts
+- Bootstrap the first administrator securely
+- Control whether registrations are auto-approved
 
-## RAG: how the AI Business Assistant works
+### 🤖 Retrieval-Augmented Generation
 
-RAG means **Retrieval-Augmented Generation**. ShopSense retrieves vendor catalog records first, then uses those records as evidence for an answer. Every vendor request is scoped to the signed-in vendor's own products.
+The AI Business Assistant uses a local retrieval pipeline:
 
 ```mermaid
 flowchart LR
-    Q[Vendor question] --> C[Extract category, price, stock and ranking filters]
-    C --> R[Retrieve from that vendor's live SQLite catalog]
-    R --> F[Filter and rank matching records]
-    F --> X[Build answer context and source records]
-    X -->|Optional| L[OpenAI or Gemini generation]
-    X -->|No provider or provider unavailable| G[Grounded local response]
-    L --> A[Answer, product cards and sources]
+    Q[Vendor Question] --> F[Extract filters]
+    F --> R[Retrieve live vendor catalog]
+    R --> X[Rank relevant products]
+    X --> C[Build answer context]
+    C --> O{AI provider available?}
+    O -->|Yes| L[OpenAI or Gemini]
+    O -->|No| G[Grounded local response]
+    L --> A[Answer, products, and sources]
     G --> A
 ```
 
-The retriever reads current SQLite catalog rows for each question. It applies supported category, price, and stock constraints, then ranks matches using exact/lexical matching and a small hashed token and character n-gram vector. It does not depend on an external vector database. Follow-up questions can include recent product results as context.
+- Vendor results are always scoped to the signed-in vendor
+- Supports category, price, stock, count, and catalog lookup questions
+- OpenAI is tried before Gemini
+- A grounded local response is used when no provider is available
 
-Count, stock, and direct catalog lookup questions can be answered directly from retrieved records. Other questions can be sent to the configured text provider with vendor catalog context (up to 200 products) and relevant matches beyond that limit. If no provider is available, local handling supports catalog filters and states when the catalog does not contain enough information. Responses include matching product cards and source details when there are matches.
+---
 
-## Architecture
+## 🧰 Technology Stack
 
-```mermaid
-flowchart LR
-    User[Vendor or admin] --> Web[React app]
-    Web -->|Axios /api requests| API[FastAPI]
-    Web -->|Vite proxy in development| API
-    API --> DB[(SQLite)]
-    Files[dataset workbooks] -->|historical analytics import| DB
-    API -. optional text generation .-> LLM[OpenAI or Gemini]
-```
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 19, React Router 7, Vite 8, Tailwind CSS 4 |
+| **Backend** | Python, FastAPI, Uvicorn, Pydantic |
+| **Database** | SQLite with automatic migrations and dataset import |
+| **Authentication** | Bearer JWT and bcrypt password hashing |
+| **AI Providers** | OpenAI API and Google Gemini API through HTTPX |
+| **Deployment** | Docker, Docker Compose, Render |
+| **Testing** | Python unittest/pytest-style API tests and JavaScript health tests |
 
-- **Frontend:** React routes provide the vendor and admin workspaces. Protected routes require the appropriate signed-in role.
-- **API:** FastAPI handles authentication, role checks, vendor and admin operations, analytics, image uploads, and AI endpoints.
-- **Database:** SQLite stores vendor accounts, catalog products, vendor sales, and historical analytics tables. `DB_PATH` can change the database file location.
-- **Historical data:** `dataset/` contains product, customer, order, and order-item workbooks. During database initialization, they are imported if `analytics_orders` is empty and all four files are present. Vendor catalog and sales data use separate tables.
-- **Business Assistant:** retrieval reads the signed-in vendor's live catalog. External providers can generate a conversational answer; local handling supports catalog filters and reports when catalog information is missing.
-- **Local web requests:** Vite proxies `/api` and `/uploads` to FastAPI. The API accepts paths with or without the `/api` prefix.
+---
 
-## Project structure
+## 📁 Project Structure
 
 ```text
 shopsense/
-├── client/                         React and Vite application
-│   ├── public/                      Static assets
-│   ├── vite.config.js               Vite plugins and development proxy
+├── client/                  # React and Vite frontend
+│   ├── public/              # Static public assets
 │   └── src/
-│       ├── App.jsx                  Routes and protected workspaces
-│       ├── components/              Shared layout, dialogs, badges and images
-│       ├── context/                 Authentication state
-│       ├── lib/                     API client and display helpers
+│       ├── components/      # Shared UI components
+│       ├── context/         # Authentication state
+│       ├── lib/             # API, currency, and image helpers
 │       └── pages/
-│           ├── admin/               Admin dashboard and vendor management
-│           └── vendor/              Dashboard, catalog, product form, insights, assistant, profile
-├── analytics_api/                   FastAPI backend and Python tests
-│   ├── main.py                      App setup and AI/summary endpoints
-│   ├── auth_routes.py               Registration, login, admin bootstrap
-│   ├── admin_routes.py              Admin vendor operations
-│   ├── vendor_routes.py             Vendor profile, catalog, stock and image APIs
-│   ├── market_analytics_routes.py   Marketplace and vendor analytics
-│   ├── ai_rag.py                    Catalog retrieval and product content generation
-│   ├── database.py                  SQLite schema, migrations and workbook import
-│   └── requirements*.txt            Python dependencies
-├── dataset/                         Historical XLSX source files
-├── scripts/                         Local startup and test launchers
-├── server/                          Runtime SQLite database and uploaded images
-├── Dockerfile                       FastAPI container image
-├── docker-compose.yml               API container and persistent data mounts
-├── .env.example                     Environment variable template
-└── package.json                     Root startup and test commands
+│           ├── admin/       # Administrator workspaces
+│           └── vendor/      # Vendor workspaces
+├── analytics_api/           # FastAPI application
+│   ├── auth_routes.py       # Login, registration, and bootstrap
+│   ├── admin_routes.py      # Administrator operations
+│   ├── vendor_routes.py     # Vendor and catalog operations
+│   ├── market_analytics_routes.py
+│   ├── ai_rag.py            # RAG retrieval and content generation
+│   └── database.py          # SQLite setup and migrations
+├── dataset/                 # Historical XLSX source data
+├── scripts/                 # Local startup and test launchers
+├── server/
+│   ├── db/                  # SQLite database
+│   └── uploads/             # Uploaded product images
+├── Dockerfile
+├── docker-compose.yml
+└── package.json             # Root project commands
 ```
 
-## Technology
+---
 
-| Layer | Stack |
-| --- | --- |
-| Frontend | React 19, React Router 7, Vite 8 |
-| UI | Tailwind CSS 4, project CSS, lucide-react |
-| Backend | Python 3, FastAPI, Uvicorn, Pydantic |
-| Data | SQLite, Python `sqlite3`, openpyxl for XLSX import |
-| Authentication | Bearer JWTs (`python-jose`), bcrypt password hashes |
-| Optional text generation | OpenAI API and Google Gemini API via HTTPX |
+## ⚡ Quick Start on Windows
 
-## Run locally
+### Prerequisites
 
-### 1. Install dependencies
+- Windows 10 or 11
+- Python 3.10 or newer
+- Node.js 20 or newer
+- npm
 
-From the repository root on Windows:
+### 1. Clone and enter the project
+
+```powershell
+git clone https://github.com/amulya-munugoti/shopsense.git
+cd shopsense
+```
+
+### 2. Create the Python environment
 
 ```powershell
 py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r analytics_api\requirements-dev.txt
+```
+
+### 3. Install frontend dependencies
+
+```powershell
 npm install --prefix client
 ```
 
-On macOS or Linux, create the environment with `python3 -m venv .venv`; use `.venv/bin/python` for Python commands.
-
-### 2. Configure `.env`
+### 4. Configure environment variables
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-For local development, set `APP_ENV=development` and a private `JWT_SECRET`. Configure `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` to create the first admin. The password must be 12–72 bytes; `BOOTSTRAP_ADMIN_NAME` is optional. Do not commit `.env`.
+Set at minimum:
 
-### 3. Start the app
+```dotenv
+APP_ENV=development
+JWT_SECRET=replace-with-a-private-secret-at-least-32-characters
+AUTO_APPROVE_VENDORS=true
+```
+
+To automatically create initial accounts:
+
+```dotenv
+BOOTSTRAP_ADMIN_EMAIL=admin@yourdomain.com
+BOOTSTRAP_ADMIN_NAME=ShopSense Administrator
+BOOTSTRAP_ADMIN_PASSWORD=UseAUniquePassword12!
+
+BOOTSTRAP_VENDOR_EMAIL=vendor@yourdomain.com
+BOOTSTRAP_VENDOR_NAME=Demo Vendor
+BOOTSTRAP_VENDOR_BUSINESS_NAME=Demo Store
+BOOTSTRAP_VENDOR_PASSWORD=UseAnotherUniquePassword12!
+```
+
+### 5. Start everything
 
 ```powershell
 npm run local
 ```
 
-Open <http://localhost:5173>. The API runs on port `8000` by default. Keep the terminal open while using the app; press `Ctrl+C` to stop both services.
+The combined launcher starts:
 
-### 4. Create the first admin and an initial approved vendor
+| Service | Address |
+| :--- | :--- |
+| 🖥️ Web application | http://127.0.0.1:5173 |
+| ⚙️ API | http://127.0.0.1:8000 |
+| 📚 Interactive API docs | http://127.0.0.1:8000/docs |
+| ❤️ Health check | http://127.0.0.1:8000/health |
 
-Set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_VENDOR_EMAIL`, and `BOOTSTRAP_VENDOR_PASSWORD` in the API environment. Both passwords must be 12–72 bytes. On API startup, the first admin and an approved initial vendor are created automatically if their account tables are empty. The vendor name and business name are optional.
+Press `Ctrl+C` to stop both services.
+
+---
+
+## 🖥️ Running Services Separately
+
+### API only
 
 ```powershell
-# Optional manual bootstrap endpoints, if you prefer to create accounts after startup:
+npm run dev
+```
+
+Or without reload mode:
+
+```powershell
+npm start
+```
+
+### Frontend only
+
+```powershell
+npm run dev --prefix client
+```
+
+Keep the API running at `http://127.0.0.1:8000`.
+
+### macOS or Linux
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r analytics_api/requirements-dev.txt
+npm install --prefix client
+npm run local
+```
+
+---
+
+## 🔐 Demo and Bootstrap Accounts
+
+### Automatic bootstrap
+
+Configure the `BOOTSTRAP_*` variables described above. Bootstrap accounts are created only when the relevant account tables are empty.
+
+### Optional manual bootstrap endpoints
+
+With the API running:
+
+```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-admin
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/auth/bootstrap-vendor
 ```
 
-The administrator and approved vendor can then sign in with their configured credentials. Set `AUTO_APPROVE_VENDORS=true` to let new vendor registrations sign in immediately; otherwise, they remain pending until an administrator approves them. Admin access remains limited to configured administrators.
+### Public demo defaults
 
-For Render, `AUTO_APPROVE_VENDORS=true` is configured by the blueprint. Anyone can choose **Vendor → Register your business** and sign in after creating an account. Admin credentials must still be configured by the app owner. Set the bootstrap values under the `shopsense-api` service's environment settings if you also need the initial admin and vendor accounts created at startup. Keep passwords private and use different values for the two accounts.
+In local development or when demo accounts are enabled, the application may use:
 
-### Run services separately
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| Administrator | `admin@demo.com` | `admin123` |
+| Vendor | `vendor@demo.com` | `vendor123` |
 
-- API only: `npm run dev` from the repository root. `npm start` runs it without reload mode.
-- Frontend only: `npm run dev` from `client`; keep the API running in another terminal.
-- Docker: the root `Dockerfile` and `docker-compose.yml` run the **API only**. Copy `.env.example` to `.env`, configure a private production `JWT_SECRET` of at least 32 bytes, then run `docker compose up --build`. Start the frontend separately with `npm run dev --prefix client`.
+> ⚠️ Demo credentials are public and must not be used in production. Set `ENABLE_DEMO_ACCOUNTS=false` for production deployments.
 
-## Configuration
+New vendor accounts require administrator approval unless `AUTO_APPROVE_VENDORS=true`.
 
-The Python API reads the root `.env` and can also read `server/.env`. Keep provider keys and credentials out of source control.
+---
 
-| Variable | Use |
-| --- | --- |
-| `APP_ENV` | Set to `development` for local demo-account seeding. |
-| `ENABLE_DEMO_ACCOUNTS` | Set to `false` to disable production demo accounts. Render's blueprint enables them. |
-| `AUTO_APPROVE_VENDORS` | Set to `true` to allow new vendor registrations to sign in without admin review. |
-| `JWT_SECRET` | Signs bearer tokens. In production, use a private value of at least 32 bytes. |
-| `PYTHON_API_PORT` | API port; default `8000`. |
-| `CLIENT_ORIGIN` | Additional frontend origin allowed by API CORS. |
-| `DB_PATH` | SQLite file path; default `server/db/shopsense.db`. |
-| `BOOTSTRAP_ADMIN_EMAIL` | Initial admin email. |
-| `BOOTSTRAP_ADMIN_NAME` | Optional initial admin name. |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Initial admin password, 12–72 bytes. |
-| `BOOTSTRAP_VENDOR_EMAIL`, `BOOTSTRAP_VENDOR_PASSWORD` | Initial approved vendor credentials. |
-| `BOOTSTRAP_VENDOR_NAME`, `BOOTSTRAP_VENDOR_BUSINESS_NAME` | Optional initial vendor profile values. |
-| `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD` | Optional demo admin credential overrides. |
-| `DEMO_VENDOR_EMAIL`, `DEMO_VENDOR_PASSWORD` | Optional demo vendor credential overrides. |
-| `OPENAI_API_KEY` | Optional OpenAI provider; tried before Gemini. |
-| `GEMINI_API_KEY` | Optional Gemini provider/fallback. |
-| `LLM_API_KEY` | Legacy Gemini key alias used if `GEMINI_API_KEY` is unset. |
-| `VITE_API_PROXY_TARGET` | Vite development proxy target; default `http://127.0.0.1:8000`. |
-| `VITE_API_URL` | Optional API base URL when frontend and API are hosted separately. |
+## 🐳 Docker
 
-Email verification is not part of the current registration flow. New vendors require admin approval unless `AUTO_APPROVE_VENDORS=true`. In production, a fresh database creates `admin@demo.com` / `admin123` and `vendor@demo.com` / `vendor123` by default, matching the former JavaScript backend. Set `ENABLE_DEMO_ACCOUNTS=false` to disable this. These are public demo credentials: anyone who knows them can use the admin account.
-
-## Build, lint, and tests
-
-Run from the repository root:
+Docker Compose runs the API. Start the frontend separately.
 
 ```powershell
-npm run build --prefix client
-npm run lint --prefix client
-npm test
+Copy-Item .env.example .env
+docker compose up --build
+npm run dev --prefix client
 ```
 
-The production frontend output is written to `client/dist/`. `npm test` runs the Python API test suite; install `analytics_api/requirements-dev.txt` first.
+Docker exposes the API at `http://127.0.0.1:8000`.
 
-## API reference
+---
 
-With the API running, open FastAPI's interactive documentation at <http://127.0.0.1:8000/docs>. `GET /health` is the health check. The frontend uses the `/api` prefix for API requests.
+## 🧪 Tests and Quality Checks
 
-| Area | Main route groups |
-| --- | --- |
-| Accounts | `/api/auth/*` — register, login, bootstrap the first admin |
-| Vendor workspace | `/api/vendor/*` — dashboard, catalog, profile, inventory, images |
-| Admin workspace | `/api/admin/*` — dashboard and vendor management |
-| Insights | `/api/analytics/*` — sales, inventory, forecasts, benchmarks, recommendations, exports |
-| AI Business Assistant and product content | `/api/ai/*` — assistant requests, description/SEO generation, status |
+Run all configured checks:
 
-Protected API routes require a bearer token. Vendor routes are scoped to the signed-in vendor; admin routes require an administrator account.
+```powershell
+npm test
+npm run lint --prefix client
+npm run build --prefix client
+```
 
-ALL RIGHTS RESERVED BY Amulya Munugoti
+The frontend build is generated in:
+
+```text
+client/dist/
+```
+
+---
+
+## ⚙️ Configuration Reference
+
+| Variable | Purpose |
+| :--- | :--- |
+| `APP_ENV` | Set to `development` or `production` |
+| `JWT_SECRET` | Signs bearer tokens; use at least 32 private characters in production |
+| `PYTHON_API_PORT` | API port, default `8000` |
+| `CLIENT_ORIGIN` | Additional frontend origin allowed by CORS |
+| `DB_PATH` | SQLite database location |
+| `AUTO_APPROVE_VENDORS` | Automatically approve newly registered vendors |
+| `ENABLE_DEMO_ACCOUNTS` | Enable or disable built-in demo accounts |
+| `BOOTSTRAP_ADMIN_*` | Initial administrator account configuration |
+| `BOOTSTRAP_VENDOR_*` | Initial vendor account configuration |
+| `DEMO_ADMIN_*` | Optional demo administrator overrides |
+| `DEMO_VENDOR_*` | Optional demo vendor overrides |
+| `OPENAI_API_KEY` | Optional OpenAI answer generation |
+| `GEMINI_API_KEY` | Optional Gemini answer generation |
+| `VITE_API_URL` | API URL used by a separately hosted frontend |
+| `VITE_API_PROXY_TARGET` | Vite development proxy target |
+
+---
+
+## 🌐 API Overview
+
+| Route Group | Capabilities |
+| :--- | :--- |
+| `/api/auth/*` | Registration, login, and account bootstrap |
+| `/api/vendor/*` | Dashboard, catalog, profile, stock, and uploads |
+| `/api/admin/*` | Vendor dashboard and account management |
+| `/api/analytics/*` | Sales, inventory, forecasts, benchmarks, and exports |
+| `/api/ai/*` | AI assistant and product content generation |
+
+Protected routes require a JWT bearer token. Vendor data is restricted to the signed-in vendor, and administrator routes require an administrator account.
+
+---
+
+## 🚀 Deployment
+
+The repository includes:
+
+- `Dockerfile` for the FastAPI service
+- `docker-compose.yml` for the API container
+- `render.yaml` for a Render API and static frontend deployment
+
+For Render, configure private bootstrap credentials and JWT settings in the service environment. The static frontend must receive the deployed API URL through `VITE_API_URL`.
+
+---
+
+## 📄 License
+
+**ALL RIGHTS RESERVED BY AMULYA MUNUGOTI**
